@@ -72,6 +72,7 @@ import DispatcherTrips
 // ============================================================
 // DRIVER PAGES
 // ============================================================
+import DriverProfile from "../pages/DriverProfile";
 
 import DriverDashboard
   from "../pages/DriverDashboard";
@@ -341,11 +342,9 @@ export default function AppRouter() {
           {/* DRIVER PROFILE */}
 
           <Route
-            path="/driver/profile"
-            element={
-              <DriverDashboard />
-            }
-          />
+  path="/driver/profile"
+  element={<DriverProfile />}
+/>
 
         </Route>
 
