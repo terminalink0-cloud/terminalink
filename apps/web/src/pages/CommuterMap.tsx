@@ -35,6 +35,51 @@ const SOCKET_URL =
   `${window.location.protocol}//${window.location.hostname}:3001/tracking`;
 
 // ============================================================
+// LIVE WINDOW
+//
+// Drivers now broadcast for the whole life of an operational leg
+// (WAITING through ARRIVED, throttled to ~1 update / 2s), not just
+// while actually moving. This window only needs to be generous
+// enough to absorb a brief network hiccup — it is NOT what makes
+// updates "live"; the socket + poll fallback below does that.
+// ============================================================
+
+const STALE_WINDOW_MS = 60_000;
+
+// ============================================================
+// STATUS COLORS
+//
+// Matches the color scheme used by StatusBadge in
+// DriverDashboard.tsx so a UV's status reads the same way on
+// both pages.
+// ============================================================
+
+const STATUS_COLORS: Record<string, string> = {
+  WAITING: "#f59e0b", // amber-500
+  BOARDING: "#3b82f6", // blue-500
+  EN_ROUTE: "#8b5cf6", // violet-500
+  APPROACHING: "#f97316", // orange-500
+  ARRIVED: "#10b981", // emerald-500
+  COMPLETED: "#14b8a6", // teal-500
+  CANCELLED: "#ef4444", // red-500
+};
+
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  WAITING: "bg-amber-100 text-amber-700",
+  BOARDING: "bg-blue-100 text-blue-700",
+  EN_ROUTE: "bg-violet-100 text-violet-700",
+  APPROACHING: "bg-orange-100 text-orange-700",
+  ARRIVED: "bg-emerald-100 text-emerald-700",
+  COMPLETED: "bg-teal-100 text-teal-700",
+  CANCELLED: "bg-red-100 text-red-700",
+};
+
+// Statuses where the vehicle is actually moving — only these get
+// a rotated, directional icon. Everything else (parked, boarding,
+// arrived) renders upright so it doesn't visually imply motion.
+const MOVING_STATUSES = new Set(["EN_ROUTE", "APPROACHING"]);
+
+// ============================================================
 // HELPERS
 // ============================================================
 
@@ -75,6 +120,14 @@ function availabilityClass(vehicle: LiveVehicle): string {
   return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
 }
 
+function statusBadgeClass(status: string): string {
+  return STATUS_BADGE_CLASSES[status] ?? "bg-gray-100 text-gray-700";
+}
+
+function statusLabel(status: string): string {
+  return status.replace(/_/g, " ");
+}
+
 function getRoleBackPath(role?: string): string {
   switch (String(role ?? "").trim().toUpperCase()) {
     case "ADMIN":
@@ -105,9 +158,14 @@ function getRoleBackLabel(role?: string): string {
 // VEHICLE ICON
 // ============================================================
 
-function createVehicleIcon(heading: number | null, selected: boolean) {
-  const safeHeading = typeof heading === "number" && Number.isFinite(heading) ? heading : 0;
+function createVehicleIcon(heading: number | null, selected: boolean, status: string) {
+  const isMoving = MOVING_STATUSES.has(status);
+
+  const safeHeading =
+    isMoving && typeof heading === "number" && Number.isFinite(heading) ? heading : 0;
+
   const size = selected ? 52 : 46;
+  const color = STATUS_COLORS[status] ?? "#2563eb";
 
   return L.divIcon({
     className: "terminalink-vehicle-icon",
@@ -117,7 +175,7 @@ function createVehicleIcon(heading: number | null, selected: boolean) {
           width:${size}px;
           height:${size}px;
           border-radius:50%;
-          background:#2563eb;
+          background:${color};
           border:3px solid white;
           box-shadow:0 4px 14px rgba(0,0,0,.30);
           display:flex;
@@ -197,6 +255,24 @@ function MapController({
 }
 
 // ============================================================
+// STATUS BADGE (popups are intentionally light-only — see note
+// in the main render about why)
+// ============================================================
+
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className={[
+        "rounded-full px-2 py-1 text-xs font-semibold",
+        statusBadgeClass(status),
+      ].join(" ")}
+    >
+      {statusLabel(status)}
+    </span>
+  );
+}
+
+// ============================================================
 // DETAIL ROW
 // ============================================================
 
@@ -231,6 +307,17 @@ export default function CommuterMap() {
 
   // ==========================================================
   // LIVE VEHICLES
+  //
+  // Three layers keep this in sync without a page refresh:
+  // 1. Socket events (vehicle:location / vehicle:removed) apply
+  //    instantly via setQueryData below.
+  // 2. A 15s poll (refetchInterval) as a baseline fallback even
+  //    if the socket were silently stuck.
+  // 3. An explicit refetch on socket "connect" (below) to
+  //    reconcile any events that were missed while disconnected
+  //    — otherwise a dropped connection could leave the map
+  //    stale for up to 15s after reconnecting instead of
+  //    correcting immediately.
   // ==========================================================
 
   const {
@@ -266,8 +353,15 @@ export default function CommuterMap() {
       upgrade: false, // disable upgrade to WebSocket
     });
 
-    socket.on("connect", () => setSocketConnected(true));
+    socket.on("connect", () => {
+      setSocketConnected(true);
+      // Reconcile anything missed while disconnected instead of
+      // waiting for the next 15s poll.
+      void refetch();
+    });
+
     socket.on("disconnect", () => setSocketConnected(false));
+
     socket.on("connect_error", (err) => {
       console.warn("Socket connection error:", err.message);
       setSocketConnected(false);
@@ -298,10 +392,11 @@ export default function CommuterMap() {
     return () => {
       socket.disconnect();
     };
-  }, [queryClient]);
+  }, [queryClient, refetch]);
 
   // ==========================================================
-  // CURRENT VEHICLES (only show positions updated within last 30s)
+  // CURRENT VEHICLES (drop anything whose last update is older
+  // than STALE_WINDOW_MS — see comment on that constant above)
   // ==========================================================
 
   const currentVehicles = useMemo(
@@ -309,7 +404,7 @@ export default function CommuterMap() {
       liveVehicles.filter((vehicle) => {
         if (!vehicle?.location?.recordedAt) return false;
         const timestamp = new Date(vehicle.location.recordedAt).getTime();
-        return Number.isFinite(timestamp) && currentTime - timestamp <= 60_000;
+        return Number.isFinite(timestamp) && currentTime - timestamp <= STALE_WINDOW_MS;
       }),
     [liveVehicles, currentTime],
   );
@@ -321,7 +416,9 @@ export default function CommuterMap() {
   const cooperatives = useMemo(
     () =>
       Array.from(
-        new Map(currentVehicles.map((vehicle) => [vehicle.cooperative.id, vehicle.cooperative.name])).entries(),
+        new Map(
+          currentVehicles.map((vehicle) => [vehicle.cooperative.id, vehicle.cooperative.name]),
+        ).entries(),
       ),
     [currentVehicles],
   );
@@ -333,7 +430,10 @@ export default function CommuterMap() {
 
   // Reset filters if the selected value disappears
   useEffect(() => {
-    if (selectedCooperative !== "ALL" && !cooperatives.some(([id]) => id === selectedCooperative)) {
+    if (
+      selectedCooperative !== "ALL" &&
+      !cooperatives.some(([id]) => id === selectedCooperative)
+    ) {
       setSelectedCooperative("ALL");
     }
   }, [cooperatives, selectedCooperative]);
@@ -538,11 +638,16 @@ export default function CommuterMap() {
                   <Marker
                     key={vehicle.tripId}
                     position={[vehicle.location.latitude, vehicle.location.longitude]}
-                    icon={createVehicleIcon(vehicle.location.heading, selected)}
+                    icon={createVehicleIcon(vehicle.location.heading, selected, vehicle.status)}
                     eventHandlers={{
                       click: () => setSelectedVehicle(vehicle),
                     }}
                   >
+                    {/* Popups render over the map itself, not the page
+                        background, so they're left light-only on purpose —
+                        a white card reads clearly against tiles on both
+                        themes. Same rationale applies to the bottom-right
+                        detail panel further down. */}
                     <Popup>
                       <div className="min-w-[250px]">
                         <div className="flex items-start justify-between gap-3">
@@ -554,18 +659,7 @@ export default function CommuterMap() {
                               {vehicleName(vehicle)}
                             </div>
                           </div>
-                          <span
-                            className={[
-                              "rounded-full px-2 py-1 text-xs font-semibold",
-                              vehicle.availableSeats <= 0
-                                ? "bg-red-100 text-red-700"
-                                : vehicle.availableSeats <= 3
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-green-100 text-green-700",
-                            ].join(" ")}
-                          >
-                            {availabilityText(vehicle)}
-                          </span>
+                          <StatusPill status={vehicle.status} />
                         </div>
 
                         <div className="mt-3 text-sm font-medium text-gray-800">
@@ -577,8 +671,22 @@ export default function CommuterMap() {
                             Driver: <strong>{driverName(vehicle)}</strong>
                           </div>
                           <div>{vehicle.cooperative.name}</div>
-                          <div>
-                            {vehicle.availableSeats} / {vehicle.seatCapacity} seats available
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={[
+                                "rounded-full px-2 py-0.5 text-xs font-semibold",
+                                vehicle.availableSeats <= 0
+                                  ? "bg-red-100 text-red-700"
+                                  : vehicle.availableSeats <= 3
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-green-100 text-green-700",
+                              ].join(" ")}
+                            >
+                              {availabilityText(vehicle)}
+                            </span>
+                            <span>
+                              {vehicle.availableSeats} / {vehicle.seatCapacity} seats
+                            </span>
                           </div>
                         </div>
 
@@ -660,8 +768,8 @@ export default function CommuterMap() {
                   </div>
                   <div className="rounded-xl bg-gray-50 p-3 dark:bg-slate-800">
                     <div className="text-xs text-gray-500 dark:text-slate-400">Status</div>
-                    <div className="mt-1 text-sm font-bold text-gray-900 dark:text-white">
-                      {selectedVehicle.status}
+                    <div className="mt-1">
+                      <StatusPill status={selectedVehicle.status} />
                     </div>
                   </div>
                 </div>
