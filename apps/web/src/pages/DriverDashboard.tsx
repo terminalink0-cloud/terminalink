@@ -337,16 +337,16 @@ export default function DriverDashboard() {
   const boardingSummary = boardingSummaryQuery.data ?? null;
 
   const seatCapacity =
-    boardingSummary?.seatCapacity ??
-    displayedTrip?.seatCapacity ??
-    assignedVehicle?.seatCapacity ??
-    0;
+  displayedTrip?.seatCapacity ??
+  boardingSummary?.seatCapacity ??
+  assignedVehicle?.seatCapacity ??
+  0;
 
-  const availableSeats =
-    boardingSummary?.availableSeats ?? displayedTrip?.availableSeats ?? seatCapacity;
+const availableSeats =
+  displayedTrip?.availableSeats ?? boardingSummary?.availableSeats ?? seatCapacity;
 
-  const boardedCount =
-    boardingSummary?.boardedCount ?? Math.max(0, seatCapacity - availableSeats);
+const boardedCount =
+  Math.max(0, seatCapacity - availableSeats);
 
   const isFull = availableSeats <= 0;
 
