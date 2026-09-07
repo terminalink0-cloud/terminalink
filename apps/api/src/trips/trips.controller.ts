@@ -28,14 +28,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 @UseGuards(JwtAuthGuard)
 @Controller('trips')
 export class TripsController {
-  constructor(
-    private readonly tripsService: TripsService,
-  ) {}
+  constructor(private readonly tripsService: TripsService) {}
 
   @Post()
-  create(
-    @Body() dto: CreateTripDto,
-  ) {
+  create(@Body() dto: CreateTripDto) {
     return this.tripsService.create(dto);
   }
 
@@ -50,40 +46,34 @@ export class TripsController {
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
-    return this.tripsService.findAll({
-      page,
-      limit,
-      search,
-      status,
-    });
+    return this.tripsService.findAll({ page, limit, search, status });
   }
 
   @Get(':id')
-  findOne(
-    @Param('id') id: string,
-  ) {
+  findOne(@Param('id') id: string) {
     return this.tripsService.findOne(id);
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateTripDto,
-  ) {
+  update(@Param('id') id: string, @Body() dto: UpdateTripDto) {
     return this.tripsService.update(id, dto);
   }
 
-  @Post(':id/complete')
-  complete(
+  @Patch(':id/available-seats')
+  updateAvailableSeats(
     @Param('id') id: string,
+    @Body() body: { availableSeats: number },
   ) {
+    return this.tripsService.updateAvailableSeats(id, body.availableSeats);
+  }
+
+  @Post(':id/complete')
+  complete(@Param('id') id: string) {
     return this.tripsService.completeTrip(id);
   }
 
   @Delete(':id')
-  remove(
-    @Param('id') id: string,
-  ) {
+  remove(@Param('id') id: string) {
     return this.tripsService.remove(id);
   }
 }
