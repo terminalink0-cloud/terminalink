@@ -309,7 +309,7 @@ export default function CommuterMap() {
       liveVehicles.filter((vehicle) => {
         if (!vehicle?.location?.recordedAt) return false;
         const timestamp = new Date(vehicle.location.recordedAt).getTime();
-        return Number.isFinite(timestamp) && currentTime - timestamp <= 30_000;
+        return Number.isFinite(timestamp) && currentTime - timestamp <= 60_000;
       }),
     [liveVehicles, currentTime],
   );
