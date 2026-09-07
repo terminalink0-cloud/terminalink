@@ -241,11 +241,10 @@ export default function DriverDashboard() {
   const cooperativeName = profileQuery.data?.cooperative?.name ?? "";
 
   const autoRouteRule = useMemo(() => {
-    const key =
-      normalizeKey(profileQuery.data?.cooperative?.name) ||
-      normalizeKey(profileQuery.data?.cooperative?.code);
+    const nameKey = normalizeKey(profileQuery.data?.cooperative?.name);
+    const codeKey = normalizeKey(profileQuery.data?.cooperative?.code);
 
-    return key ? AUTO_ROUTE_RULES[key] : undefined;
+    return AUTO_ROUTE_RULES[nameKey] ?? AUTO_ROUTE_RULES[codeKey];
   }, [profileQuery.data?.cooperative?.name, profileQuery.data?.cooperative?.code]);
 
   const autoRoute = useMemo(() => {
@@ -312,11 +311,24 @@ export default function DriverDashboard() {
 
   const currentLeg = displayedTrip ? getCurrentLeg(displayedTrip) : null;
 
+  // ==========================================================
+  // LOCATION TRACKING
+  //
+  // Broadcast for the entire life of the operational leg — not
+  // just EN_ROUTE/APPROACHING. Previously the vehicle only
+  // started broadcasting once driving began, so it never showed
+  // on the commuter map while WAITING/BOARDING, and vanished the
+  // instant it hit ARRIVED (even though the driver, vehicle, and
+  // next leg are all still imminent). Only stop once the leg is
+  // truly finished.
+  // ==========================================================
+
   useDriverTracking({
     enabled:
       !!displayedTrip &&
       !!currentLeg &&
-      (currentLeg.status === "EN_ROUTE" || currentLeg.status === "APPROACHING"),
+      currentLeg.status !== "COMPLETED" &&
+      currentLeg.status !== "CANCELLED",
     tripId: displayedTrip?.id ?? null,
     tripLegId: currentLeg?.id ?? null,
   });
@@ -330,23 +342,25 @@ export default function DriverDashboard() {
     enabled:
       !!displayedTrip &&
       !!currentLeg &&
-      (currentLeg.status === "BOARDING" || currentLeg.status === "ARRIVED"),
-    refetchInterval: currentLeg?.status === "BOARDING" ? 5_000 : false,
+      ["BOARDING", "EN_ROUTE", "APPROACHING", "ARRIVED"].includes(currentLeg.status),
+    refetchInterval:
+      currentLeg?.status === "BOARDING" || currentLeg?.status === "EN_ROUTE"
+        ? 5_000
+        : false,
   });
 
   const boardingSummary = boardingSummaryQuery.data ?? null;
 
   const seatCapacity =
-  displayedTrip?.seatCapacity ??
-  boardingSummary?.seatCapacity ??
-  assignedVehicle?.seatCapacity ??
-  0;
+    displayedTrip?.seatCapacity ??
+    boardingSummary?.seatCapacity ??
+    assignedVehicle?.seatCapacity ??
+    0;
 
-const availableSeats =
-  displayedTrip?.availableSeats ?? boardingSummary?.availableSeats ?? seatCapacity;
+  const availableSeats =
+    displayedTrip?.availableSeats ?? boardingSummary?.availableSeats ?? seatCapacity;
 
-const boardedCount =
-  Math.max(0, seatCapacity - availableSeats);
+  const boardedCount = Math.max(0, seatCapacity - availableSeats);
 
   const isFull = availableSeats <= 0;
 
@@ -415,26 +429,22 @@ const boardedCount =
   });
 
   const adjustSeatMutation = useMutation({
-  mutationFn: async (delta: number) => {
-    console.log("Mutation executing. Trip ID:", displayedTrip?.id);
-    if (!displayedTrip) return;
+    mutationFn: async (delta: number) => {
+      if (!displayedTrip) return;
 
-    const newAvailable = Math.max(0, Math.min(seatCapacity, availableSeats + delta));
-    console.log("New available seats:", newAvailable);
+      const newAvailable = Math.max(0, Math.min(seatCapacity, availableSeats + delta));
 
-    await api.patch(`/trips/${displayedTrip.id}/available-seats`, {
-      availableSeats: newAvailable,
-    });
-  },
-  onSuccess: async () => {
-    console.log("Seat adjustment succeeded");
-    await refresh();
-  },
-  onError: (error) => {
-    console.log("Seat adjustment failed:", error);
-    alert(getApiErrorMessage(error) || "Failed to adjust seats");
-  },
-});
+      await api.patch(`/trips/${displayedTrip.id}/available-seats`, {
+        availableSeats: newAvailable,
+      });
+    },
+    onSuccess: async () => {
+      await refresh();
+    },
+    onError: (error) => {
+      alert(getApiErrorMessage(error) || "Failed to adjust seats");
+    },
+  });
 
   const updateCapacityMutation = useMutation({
     mutationFn: async (newCapacity: number) => {
@@ -890,6 +900,56 @@ function EmptyTripState({
 }
 
 // ============================================================
+// SEAT ADJUST CONTROLS (shared between BOARDING and EN_ROUTE)
+// ============================================================
+
+function SeatAdjustControls({
+  availableSeats,
+  seatCapacity,
+  onAdjustSeat,
+  adjustSeatPending,
+  helperText,
+}: {
+  availableSeats: number;
+  seatCapacity: number;
+  onAdjustSeat: (delta: number) => void;
+  adjustSeatPending: boolean;
+  helperText: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={() => onAdjustSeat(1)}
+          disabled={adjustSeatPending || availableSeats >= seatCapacity}
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Increase available seats"
+        >
+          +
+        </button>
+        <div className="text-center">
+          <div className="text-3xl font-bold text-slate-900 dark:text-white">
+            {availableSeats}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">available</div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAdjustSeat(-1)}
+          disabled={adjustSeatPending || availableSeats <= 0}
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Decrease available seats"
+        >
+          −
+        </button>
+      </div>
+      <p className="text-center text-xs text-slate-500 dark:text-slate-400">{helperText}</p>
+    </div>
+  );
+}
+
+// ============================================================
 // DRIVER TRIP CARD
 // ============================================================
 
@@ -1119,42 +1179,14 @@ function DriverTripCard({
                 </div>
               )}
 
-              {/* Simple seat adjustment */}
-              <div className="mt-6 flex flex-col items-center gap-3">
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => onAdjustSeat(1)}
-                    disabled={adjustSeatPending || availableSeats >= seatCapacity}
-                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="Increase available seats"
-                  >
-                    +
-                  </button>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-slate-900 dark:text-white">
-                      {availableSeats}
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                      available
-                    </div>
-                  </div>
-                  <button
-  type="button"
-  onClick={() => {
-    console.log("Minus clicked");
-    onAdjustSeat(-1);
-  }}
-  disabled={adjustSeatPending || availableSeats <= 0}
-                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="Decrease available seats"
-                  >
-                    −
-                  </button>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Tap + when a passenger leaves, tap − when a passenger boards.
-                </p>
+              <div className="mt-6">
+                <SeatAdjustControls
+                  availableSeats={availableSeats}
+                  seatCapacity={seatCapacity}
+                  onAdjustSeat={onAdjustSeat}
+                  adjustSeatPending={adjustSeatPending}
+                  helperText="Tap + when a passenger leaves, tap − when a passenger boards."
+                />
               </div>
 
               {/* START TRIP */}
@@ -1196,6 +1228,32 @@ function DriverTripCard({
               GPS tracking is active. Your phone's location is being shared with
               commuters while this operational leg is active.
             </p>
+
+            {/* Passengers can still be picked up or dropped off along the
+                route — not just at the terminal — so the same seat
+                controls used during BOARDING are available here too. */}
+
+            <div className="mt-5 rounded-xl border border-violet-100 bg-white p-4 dark:border-violet-900/40 dark:bg-slate-900">
+              <div className="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                Passengers En Route
+              </div>
+
+              {isFull && (
+                <div className="mt-2 rounded-lg bg-amber-100 p-2.5 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                  Vehicle is full — no seats available for pickup.
+                </div>
+              )}
+
+              <div className="mt-3">
+                <SeatAdjustControls
+                  availableSeats={availableSeats}
+                  seatCapacity={seatCapacity}
+                  onAdjustSeat={onAdjustSeat}
+                  adjustSeatPending={adjustSeatPending}
+                  helperText="Tap − when you pick up a passenger along the way, tap + when one gets off."
+                />
+              </div>
+            </div>
 
             {leg.destinationType === "TERMINAL" && (
               <button
