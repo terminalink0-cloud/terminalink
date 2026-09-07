@@ -12,3 +12,12 @@ export async function getTrip(id:string){
   return response.data;
 
 }
+
+export type TripReport = {
+  id: string;
+  passengerName?: string;
+  driverName?: string;
+  vehicleNumber?: string;
+  status?: string;
+  fare?: number | string;
+};

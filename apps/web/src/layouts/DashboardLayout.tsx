@@ -6,16 +6,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import {
-  LayoutDashboard,
-  Route as RouteIcon,
-  Users,
-  Bus,
-  FileText,
-  LogOut,
-  Settings2,
-  Handshake,
-} from "lucide-react";
+import { LayoutDashboard, Users, Settings } from "lucide-react";
 
 import {
   useAuth,

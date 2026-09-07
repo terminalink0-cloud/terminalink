@@ -4,31 +4,18 @@ export interface LoginDto {
 }
 
 export interface AuthResponse {
-
-  accessToken:string;
-
-  user:User;
-
-}
-
-
-export interface User {
-
-  id:string;
-
-  username:string;
-
-  role:
-  "ADMIN"
-  |
-  "DISPATCHER"
-  |
-  "DRIVER";
-
+  accessToken: string;
+  user: User;
 }
 
 export interface User {
   id: string;
   username: string;
-  role: string;
+  role: "ADMIN" | "DISPATCHER" | "DRIVER";
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
 }
