@@ -1314,153 +1314,77 @@ async findMyTrip(
   // ==========================================================
 
   async startMyTrip(
-    userId: string,
-    tripId: string,
-  ) {
-    const driver =
-      await this.getActiveDriver(
-        userId,
-      );
+  userId: string,
+  tripId: string,
+) {
+  const driver = await this.getActiveDriver(userId);
 
-
-    const trip =
-      await this.prisma.trip.findFirst({
-        where: {
-          id:
-            tripId,
-
-          driverId:
-            driver.id,
-        },
-
-        include: {
-          legs: {
-            orderBy: {
-              createdAt:
-                "desc",
-            },
-
-            include: {
-              boardings: true,
-            },
-          },
-        },
-      });
-
-
-    if (!trip) {
-      throw new NotFoundException(
-        "Assigned trip not found",
-      );
-    }
-
-
-    const leg =
-      trip.legs.find(
-        (
-          item,
-        ) =>
-          item.status !==
-            TripLegStatus.COMPLETED &&
-          item.status !==
-            TripLegStatus.CANCELLED,
-      );
-
-
-    if (!leg) {
-      throw new BadRequestException(
-        "No active trip leg found",
-      );
-    }
-
-
-    if (
-      leg.status !==
-      TripLegStatus.BOARDING
-    ) {
-      throw new BadRequestException(
-        `Trip leg must be BOARDING before starting. Current status: ${leg.status}`,
-      );
-    }
-
-
-    const boardedCount =
-      leg.boardings.length;
-
-
-    if (
-      boardedCount <=
-      0
-    ) {
-      throw new BadRequestException(
-        "At least one passenger must be boarded before starting the trip",
-      );
-    }
-
-
-    await this.prisma.$transaction(
-      async (tx) => {
-
-        await tx.tripLeg.update({
-          where: {
-            id:
-              leg.id,
-          },
-
-          data: {
-            status:
-              TripLegStatus.EN_ROUTE,
-
-            startedAt:
-              leg.startedAt ??
-              new Date(),
-
-            terminalVerificationToken:
-              null,
-
-            terminalVerificationIssuedAt:
-              null,
-          },
-        });
-
-
-        await tx.trip.update({
-          where: {
-            id:
-              trip.id,
-          },
-
-          data: {
-            status:
-              TripStatus.EN_ROUTE,
-
-            startedAt:
-              trip.startedAt ??
-              new Date(),
-          },
-        });
-
-
-        await tx.queueEntry.updateMany({
-          where: {
-            tripLegId:
-              leg.id,
-          },
-
-          data: {
-            status:
-              "DEPARTED",
-          },
-        });
+  const trip = await this.prisma.trip.findFirst({
+    where: {
+      id: tripId,
+      driverId: driver.id,
+    },
+    include: {
+      legs: {
+        orderBy: { createdAt: "desc" },
       },
-    );
+    },
+  });
 
+  if (!trip) {
+    throw new NotFoundException("Assigned trip not found");
+  }
 
-    return this.findMyTrip(
-      userId,
-      tripId,
+  const leg = trip.legs.find(
+    (item) =>
+      item.status !== TripLegStatus.COMPLETED &&
+      item.status !== TripLegStatus.CANCELLED,
+  );
+
+  if (!leg) {
+    throw new BadRequestException("No active trip leg found");
+  }
+
+  if (leg.status !== TripLegStatus.BOARDING) {
+    throw new BadRequestException(
+      `Trip leg must be BOARDING before starting. Current status: ${leg.status}`,
     );
   }
+
+  // NEW: Use seat count instead of boarding records
+  if (trip.availableSeats >= trip.seatCapacity) {
+    throw new BadRequestException(
+      "At least one passenger must be boarded before starting the trip",
+    );
+  }
+
+  await this.prisma.$transaction(async (tx) => {
+    await tx.tripLeg.update({
+      where: { id: leg.id },
+      data: {
+        status: TripLegStatus.EN_ROUTE,
+        startedAt: leg.startedAt ?? new Date(),
+        terminalVerificationToken: null,
+        terminalVerificationIssuedAt: null,
+      },
+    });
+
+    await tx.trip.update({
+      where: { id: trip.id },
+      data: {
+        status: TripStatus.EN_ROUTE,
+        startedAt: trip.startedAt ?? new Date(),
+      },
+    });
+
+    await tx.queueEntry.updateMany({
+      where: { tripLegId: leg.id },
+      data: { status: "DEPARTED" },
+    });
+  });
+
+  return this.findMyTrip(userId, tripId);
+}
 
 
   // ==========================================================
