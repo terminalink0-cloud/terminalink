@@ -14,11 +14,10 @@ import {
   MapPin,
   Pencil,
   RefreshCw,
-  Users,
   XCircle,
 } from "lucide-react";
 
-import { boardPassenger, getTripBoardingSummary } from "../api/boarding.api";
+import { getTripBoardingSummary } from "../api/boarding.api";
 import type { BoardingSummary } from "../api/boarding.api";
 
 import {
@@ -178,14 +177,14 @@ function getOperationText(leg: DriverTripLeg): string {
 export default function DriverDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  useTheme(); // theme is applied globally via ThemeProvider/DriverLayout; kept for future conditional logic
+  useTheme();
 
   // CREATE TRIP
   const [tripNumber, setTripNumber] = useState("");
   const [municipalityId, setMunicipalityId] = useState("");
   const [routeId, setRouteId] = useState("");
 
-  // BOARDING FORM (no longer needed, but kept state for toggling boarding visibility)
+  // BOARDING VISIBILITY & SELECTED TRIP
   const [showBoarding, setShowBoarding] = useState(true);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
 
@@ -349,7 +348,6 @@ export default function DriverDashboard() {
   const boardedCount =
     boardingSummary?.boardedCount ?? Math.max(0, seatCapacity - availableSeats);
 
-  const passengers = boardingSummary?.boardings ?? [];
   const isFull = availableSeats <= 0;
 
   // ==========================================================
@@ -795,7 +793,6 @@ export default function DriverDashboard() {
             availableSeats={availableSeats}
             boardedCount={boardedCount}
             isFull={isFull}
-            passengers={passengers}
             onAdjustSeat={(delta) => adjustSeatMutation.mutate(delta)}
             adjustSeatPending={adjustSeatMutation.isPending}
             onStartBoarding={() => startBoardingMutation.mutate(displayedTrip.id)}
@@ -897,7 +894,6 @@ type DriverTripCardProps = {
   availableSeats: number;
   boardedCount: number;
   isFull: boolean;
-  passengers: BoardingSummary["boardings"];
   onAdjustSeat: (delta: number) => void;
   adjustSeatPending: boolean;
   onStartBoarding: () => void;
@@ -928,7 +924,6 @@ function DriverTripCard({
   availableSeats,
   boardedCount,
   isFull,
-  passengers,
   onAdjustSeat,
   adjustSeatPending,
   onStartBoarding,
@@ -1065,7 +1060,7 @@ function DriverTripCard({
         </div>
       )}
 
-      {/* BOARDING (simplified) */}
+      {/* BOARDING */}
       {leg.status === "BOARDING" && (
         <div className="border-b border-slate-100 p-6 dark:border-slate-800">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1115,7 +1110,7 @@ function DriverTripCard({
                 </div>
               )}
 
-              {/* Simple seat adjustment controls */}
+              {/* Simple seat adjustment */}
               <div className="mt-6 flex flex-col items-center gap-3">
                 <div className="flex items-center gap-4">
                   <button
@@ -1149,6 +1144,28 @@ function DriverTripCard({
                   Tap + when a passenger leaves, tap − when a passenger boards.
                 </p>
               </div>
+
+              {/* START TRIP */}
+              {boardedCount > 0 && (
+                <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                  <div className="font-semibold text-emerald-900 dark:text-emerald-200">
+                    Ready to leave {isReturn ? "terminal" : "municipality"}
+                  </div>
+                  <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
+                    Start Trip changes this operational leg to EN_ROUTE and activates GPS tracking.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={startTripPending}
+                    onClick={onStartTrip}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+                  >
+                    {startTripPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {startTripPending ? "Starting Trip..." : "Start Trip"}
+                  </button>
+                  {startTripError && <ErrorBox message={startTripError} />}
+                </div>
+              )}
             </div>
           )}
         </div>
