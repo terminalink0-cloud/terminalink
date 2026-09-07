@@ -1134,9 +1134,12 @@ function DriverTripCard({
                     </div>
                   </div>
                   <button
-                    type="button"
-                    onClick={() => onAdjustSeat(-1)}
-                    disabled={adjustSeatPending || availableSeats <= 0}
+  type="button"
+  onClick={() => {
+    console.log("Minus clicked");
+    onAdjustSeat(-1);
+  }}
+  disabled={adjustSeatPending || availableSeats <= 0}
                     className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Decrease available seats"
                   >
