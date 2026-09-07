@@ -12,6 +12,7 @@ import {
   Clock,
   Loader2,
   MapPin,
+  Pencil,
   RefreshCw,
   Users,
   XCircle,
@@ -55,17 +56,16 @@ type ApiError = {
 
 // ============================================================
 // AUTOMATIC ROUTE RULES
-//
-// Some cooperatives always run a fixed municipality <-> terminal
-// route. For those, skip manual selection and derive it from the
-// driver's cooperative automatically.
-//
-// Add more cooperatives here as needed — match is case/space
-// insensitive against either the cooperative's name or its code.
 // ============================================================
 
 const AUTO_ROUTE_RULES: Record<string, { origin: string; destination: string }> = {
+  PAVATRANSCO: { origin: "Panganiban", destination: "Virac" },
+  VIRSACAPANTRANSCO: { origin: "Caramoran", destination: "Virac" },
+  CATTRANSCO: { origin: "Viga", destination: "Virac" },
+  CAPATRASCO: { origin: "Caramoran", destination: "Virac" },
+  HAPITRANSCO: { origin: "Bagamanoc", destination: "Virac" },
   GIVITRANSCO: { origin: "Gigmoto", destination: "Virac" },
+  BAGITSCO: { origin: "Baras", destination: "Virac" },
 };
 
 function normalizeKey(value?: string | null): string {
@@ -178,19 +178,22 @@ function getOperationText(leg: DriverTripLeg): string {
 export default function DriverDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  useTheme(); // theme is applied globally via ThemeProvider/DriverLayout; kept for future conditional logic
+  useTheme();
 
   // CREATE TRIP
   const [tripNumber, setTripNumber] = useState("");
   const [municipalityId, setMunicipalityId] = useState("");
   const [routeId, setRouteId] = useState("");
-  const [manualRouteOverride, setManualRouteOverride] = useState(false);
 
   // BOARDING FORM
   const [passengerName, setPassengerName] = useState("");
   const [seatNumber, setSeatNumber] = useState("");
   const [showBoarding, setShowBoarding] = useState(true);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+
+  // CAPACITY EDITING
+  const [isEditingCapacity, setIsEditingCapacity] = useState(false);
+  const [capacityInput, setCapacityInput] = useState("");
 
   // ==========================================================
   // QUERIES
@@ -240,16 +243,14 @@ export default function DriverDashboard() {
 
   const cooperativeName = profileQuery.data?.cooperative?.name ?? "";
 
-    const autoRouteRule = useMemo(() => {
+  const autoRouteRule = useMemo(() => {
     const nameKey = normalizeKey(profileQuery.data?.cooperative?.name);
     const codeKey = normalizeKey(profileQuery.data?.cooperative?.code);
-
     return AUTO_ROUTE_RULES[nameKey] ?? AUTO_ROUTE_RULES[codeKey];
   }, [profileQuery.data?.cooperative?.name, profileQuery.data?.cooperative?.code]);
 
   const autoRoute = useMemo(() => {
     if (!autoRouteRule) return undefined;
-
     return routes.find(
       (route) =>
         normalizeKey(route.origin?.name) === normalizeKey(autoRouteRule.origin) &&
@@ -259,7 +260,6 @@ export default function DriverDashboard() {
 
   const autoMunicipality = useMemo(() => {
     if (!autoRouteRule) return undefined;
-
     return municipalities.find(
       (municipality) => normalizeKey(municipality.name) === normalizeKey(autoRouteRule.origin),
     );
@@ -269,14 +269,14 @@ export default function DriverDashboard() {
   const autoMunicipalityId = autoMunicipality?.id;
 
   useEffect(() => {
-    if (autoRouteId && !routeId) setRouteId(autoRouteId);
-  }, [autoRouteId, routeId]);
+    if (autoRouteId) setRouteId(autoRouteId);
+  }, [autoRouteId]);
 
   useEffect(() => {
-    if (autoMunicipalityId && !municipalityId) setMunicipalityId(autoMunicipalityId);
-  }, [autoMunicipalityId, municipalityId]);
+    if (autoMunicipalityId) setMunicipalityId(autoMunicipalityId);
+  }, [autoMunicipalityId]);
 
-  const usingAutoRoute = !!autoRouteRule && !!autoRoute && !manualRouteOverride;
+  const hasAutoRule = !!autoRouteRule;
 
   // ==========================================================
   // TRIP DERIVATION
@@ -375,7 +375,6 @@ export default function DriverDashboard() {
       setTripNumber("");
       setMunicipalityId("");
       setRouteId("");
-      setManualRouteOverride(false);
       setSelectedTripId(data.id);
       setShowBoarding(false);
       await refresh();
@@ -423,6 +422,17 @@ export default function DriverDashboard() {
       setPassengerName("");
       setSeatNumber("");
       await refresh();
+    },
+  });
+
+  const updateCapacityMutation = useMutation({
+    mutationFn: async (newCapacity: number) => {
+      if (!assignedVehicle?.id) throw new Error("No vehicle assigned");
+      await api.patch(`/vehicles/${assignedVehicle.id}`, { seatCapacity: newCapacity });
+    },
+    onSuccess: async () => {
+      setIsEditingCapacity(false);
+      await queryClient.invalidateQueries({ queryKey: ["driver-profile"] });
     },
   });
 
@@ -558,9 +568,54 @@ export default function DriverDashboard() {
                   </div>
                 </div>
               </div>
-              <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <CheckCircle2 className="h-4 w-4" />
-                {assignedVehicle.seatCapacity ?? 0} seats · Active
+
+              <div className="flex items-center gap-3">
+                {isEditingCapacity ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      value={capacityInput}
+                      onChange={(e) => setCapacityInput(e.target.value)}
+                      className="w-24 rounded-lg border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    />
+                    <button
+                      onClick={() => {
+                        const newCapacity = Number(capacityInput);
+                        if (Number.isInteger(newCapacity) && newCapacity > 0) {
+                          updateCapacityMutation.mutate(newCapacity);
+                        }
+                      }}
+                      disabled={updateCapacityMutation.isPending}
+                      className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {updateCapacityMutation.isPending ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setIsEditingCapacity(false)}
+                      className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      {assignedVehicle.seatCapacity ?? 0} seats · Active
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCapacityInput(String(assignedVehicle.seatCapacity ?? 0));
+                        setIsEditingCapacity(true);
+                      }}
+                      className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                      title="Edit capacity"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -618,31 +673,35 @@ export default function DriverDashboard() {
                     placeholder="Optional"
                   />
 
-                  {/* AUTOMATIC ROUTE (locked) */}
-                  {usingAutoRoute && autoRoute && autoRouteRule ? (
+                  {/* AUTOMATIC ROUTE (locked, no override) */}
+                  {hasAutoRule && autoRoute && autoMunicipality ? (
                     <div className="md:col-span-2">
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/30">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
-                              Automatic Route · {cooperativeName}
-                            </div>
-                            <div className="mt-1 text-lg font-bold text-indigo-900 dark:text-indigo-100">
-                              {autoRouteRule.origin} → {autoRouteRule.destination}
-                            </div>
-                            <p className="mt-1 text-xs text-indigo-700 dark:text-indigo-300">
-                              Municipality and route are set automatically for your
-                              cooperative.
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setManualRouteOverride(true)}
-                            className="shrink-0 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 dark:border-indigo-800 dark:bg-slate-900 dark:text-indigo-300 dark:hover:bg-slate-800"
-                          >
-                            Change
-                          </button>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
+                          Automatic Route · {cooperativeName}
                         </div>
+                        <div className="mt-1 text-lg font-bold text-indigo-900 dark:text-indigo-100">
+                          {autoRouteRule.origin} → {autoRouteRule.destination}
+                        </div>
+                        <p className="mt-1 text-xs text-indigo-700 dark:text-indigo-300">
+                          This cooperative operates only on this route. Municipality and
+                          route are set automatically.
+                        </p>
+                      </div>
+                    </div>
+                  ) : hasAutoRule && (!autoRoute || !autoMunicipality) ? (
+                    <div className="md:col-span-2">
+                      <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/30">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-300">
+                          Automatic Route · {cooperativeName}
+                        </div>
+                        <div className="mt-1 text-lg font-bold text-red-900 dark:text-red-100">
+                          {autoRouteRule.origin} → {autoRouteRule.destination}
+                        </div>
+                        <p className="mt-1 text-xs text-red-700 dark:text-red-300">
+                          This cooperative has a fixed route, but the corresponding
+                          municipality or route was not found. Trip creation is disabled.
+                        </p>
                       </div>
                     </div>
                   ) : (
@@ -687,33 +746,6 @@ export default function DriverDashboard() {
                             ))}
                         </select>
                       </div>
-
-                      {autoRouteRule && autoRoute && manualRouteOverride && (
-                        <div className="md:col-span-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setManualRouteOverride(false);
-                              setRouteId(autoRoute.id);
-                              if (autoMunicipality) setMunicipalityId(autoMunicipality.id);
-                            }}
-                            className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
-                          >
-                            Use automatic route ({autoRouteRule.origin} →{" "}
-                            {autoRouteRule.destination})
-                          </button>
-                        </div>
-                      )}
-
-                      {autoRouteRule && !autoRoute && (
-                        <div className="md:col-span-3">
-                          <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                            {cooperativeName} normally runs {autoRouteRule.origin} →{" "}
-                            {autoRouteRule.destination} automatically, but that route
-                            wasn't found in the route list. Select manually below.
-                          </div>
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
@@ -724,7 +756,12 @@ export default function DriverDashboard() {
 
                 <button
                   type="button"
-                  disabled={!municipalityId || !routeId || createTripMutation.isPending}
+                  disabled={
+                    !municipalityId ||
+                    !routeId ||
+                    createTripMutation.isPending ||
+                    (hasAutoRule && (!autoRoute || !autoMunicipality))
+                  }
                   onClick={() => {
                     createTripMutation.mutate({
                       municipalityId,
