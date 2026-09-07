@@ -1,3 +1,5 @@
+// apps/web/src/types/auth.ts
+
 export type AuthRole = "ADMIN" | "DISPATCHER" | "DRIVER";
 
 export type AuthUser = {
@@ -11,3 +13,13 @@ export type AuthUser = {
   phone?: string;
   status?: string;
 };
+
+export interface LoginDto {
+  username: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: AuthUser;
+}

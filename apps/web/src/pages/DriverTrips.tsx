@@ -269,7 +269,15 @@ export default function DriverTrips() {
 
 // ... (all subcomponents remain the same as previously provided, with adjustments for optional fields)
 
-function ActiveTripList({ trips, enRoutePending, enRouteTripId, approachingPending, approachingTripId, onStartTrip, onMarkApproaching }: {
+function ActiveTripList({
+  trips,
+  enRoutePending,
+  enRouteTripId,
+  approachingPending,
+  approachingTripId,
+  onStartTrip,
+  onMarkApproaching,
+}: {
   trips: DriverTrip[];
   enRoutePending: boolean;
   enRouteTripId?: string;
@@ -283,9 +291,9 @@ function ActiveTripList({ trips, enRoutePending, enRouteTripId, approachingPendi
       {trips.map((trip) => {
         const isStarting = enRoutePending && enRouteTripId === trip.id;
         const isApproaching = approachingPending && approachingTripId === trip.id;
+
         return (
           <div key={trip.id} className="p-6">
-            {/* content same as before but using trip.seatCapacity ?? 0 etc. */}
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -293,6 +301,7 @@ function ActiveTripList({ trips, enRoutePending, enRouteTripId, approachingPendi
                   <StatusBadge status={trip.status} />
                 </div>
                 <div className="mt-2 text-gray-600 dark:text-slate-300">{getRouteName(trip)}</div>
+
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <InfoCard
                     label="Vehicle"
@@ -304,10 +313,50 @@ function ActiveTripList({ trips, enRoutePending, enRouteTripId, approachingPendi
                   <InfoCard label="ETA" value={formatDate(trip.estimatedArrival)} />
                 </div>
               </div>
+
               <div className="flex min-w-[230px] flex-col gap-2">
-                {/* action buttons unchanged */}
+                {trip.status === "WAITING" && (
+                  <button
+                    type="button"
+                    disabled={isStarting || enRoutePending}
+                    onClick={() => onStartTrip(trip.id)}
+                    className="rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isStarting ? "Starting..." : "Start Trip"}
+                  </button>
+                )}
+
+                {trip.status === "EN_ROUTE" && (
+                  <button
+                    type="button"
+                    disabled={isApproaching || approachingPending}
+                    onClick={() => onMarkApproaching(trip.id)}
+                    className="rounded-lg bg-orange-500 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isApproaching ? "Updating..." : "Mark Approaching"}
+                  </button>
+                )}
+
+                {trip.status === "APPROACHING" && (
+                  <div className="rounded-lg bg-yellow-100 p-3 text-sm font-medium text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-300">
+                    Approaching terminal. Waiting for dispatcher arrival processing.
+                  </div>
+                )}
+
+                {trip.status === "DOCKED" && (
+                  <div className="rounded-lg bg-yellow-100 p-3 text-sm font-medium text-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-300">
+                    Arrived at terminal. Dispatcher controls boarding.
+                  </div>
+                )}
+
+                {trip.status === "BOARDING" && (
+                  <div className="rounded-lg bg-blue-100 p-3 text-sm font-medium text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                    Passenger boarding is currently in progress.
+                  </div>
+                )}
               </div>
             </div>
+
             <div className="mt-5 border-t border-gray-100 pt-4 dark:border-slate-800">
               <div className="grid gap-2 text-xs text-gray-500 dark:text-slate-400 sm:grid-cols-2 lg:grid-cols-4">
                 <TimelineItem label="Created" value={trip.createdAt} />

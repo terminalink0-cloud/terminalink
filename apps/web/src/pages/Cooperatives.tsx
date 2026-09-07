@@ -1,7 +1,7 @@
 // apps/web/src/pages/Cooperatives.tsx
 
-import { useEffect, useMemo, useState } from "react";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../api/axios";
 
 // ============================================================

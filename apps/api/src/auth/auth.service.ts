@@ -1,6 +1,12 @@
 // apps/web/src/auth/auth.service.ts
 
-import type { AuthUser, AuthRole } from "../types/auth";
+import type { AuthUser, AuthRole, LoginDto, AuthResponse } from "../types/auth";
+
+// Example service functions; adjust according to your actual implementation
+export async function loginWithCredentials(dto: LoginDto): Promise<AuthResponse> {
+  // implement login logic here (or re-export from another module)
+  throw new Error("Not implemented");
+}
 
 export function getRoleHome(role: AuthRole): string {
   switch (role) {
