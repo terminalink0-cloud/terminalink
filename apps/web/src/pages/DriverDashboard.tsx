@@ -415,17 +415,20 @@ export default function DriverDashboard() {
   });
 
   const adjustSeatMutation = useMutation({
-    mutationFn: async (delta: number) => {
-      if (!displayedTrip) return;
-      const newAvailable = Math.max(0, Math.min(seatCapacity, availableSeats + delta));
-      await api.patch(`/trips/${displayedTrip.id}/available-seats`, {
-        availableSeats: newAvailable,
-      });
-    },
-    onSuccess: async () => {
-      await refresh();
-    },
-  });
+  mutationFn: async (delta: number) => {
+    if (!displayedTrip) return;
+    const newAvailable = Math.max(0, Math.min(seatCapacity, availableSeats + delta));
+    await api.patch(`/trips/${displayedTrip.id}/available-seats`, {
+      availableSeats: newAvailable,
+    });
+  },
+  onSuccess: async () => {
+    await refresh();
+  },
+  onError: (error) => {
+    alert(getApiErrorMessage(error) || "Failed to adjust seats");
+  },
+});
 
   const updateCapacityMutation = useMutation({
     mutationFn: async (newCapacity: number) => {
