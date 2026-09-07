@@ -178,16 +178,14 @@ function getOperationText(leg: DriverTripLeg): string {
 export default function DriverDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  useTheme();
+  useTheme(); // theme is applied globally via ThemeProvider/DriverLayout; kept for future conditional logic
 
   // CREATE TRIP
   const [tripNumber, setTripNumber] = useState("");
   const [municipalityId, setMunicipalityId] = useState("");
   const [routeId, setRouteId] = useState("");
 
-  // BOARDING FORM
-  const [passengerName, setPassengerName] = useState("");
-  const [seatNumber, setSeatNumber] = useState("");
+  // BOARDING FORM (no longer needed, but kept state for toggling boarding visibility)
   const [showBoarding, setShowBoarding] = useState(true);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
 
@@ -244,13 +242,16 @@ export default function DriverDashboard() {
   const cooperativeName = profileQuery.data?.cooperative?.name ?? "";
 
   const autoRouteRule = useMemo(() => {
-    const nameKey = normalizeKey(profileQuery.data?.cooperative?.name);
-    const codeKey = normalizeKey(profileQuery.data?.cooperative?.code);
-    return AUTO_ROUTE_RULES[nameKey] ?? AUTO_ROUTE_RULES[codeKey];
+    const key =
+      normalizeKey(profileQuery.data?.cooperative?.name) ||
+      normalizeKey(profileQuery.data?.cooperative?.code);
+
+    return key ? AUTO_ROUTE_RULES[key] : undefined;
   }, [profileQuery.data?.cooperative?.name, profileQuery.data?.cooperative?.code]);
 
   const autoRoute = useMemo(() => {
     if (!autoRouteRule) return undefined;
+
     return routes.find(
       (route) =>
         normalizeKey(route.origin?.name) === normalizeKey(autoRouteRule.origin) &&
@@ -260,6 +261,7 @@ export default function DriverDashboard() {
 
   const autoMunicipality = useMemo(() => {
     if (!autoRouteRule) return undefined;
+
     return municipalities.find(
       (municipality) => normalizeKey(municipality.name) === normalizeKey(autoRouteRule.origin),
     );
@@ -386,8 +388,6 @@ export default function DriverDashboard() {
     onSuccess: async (data) => {
       setSelectedTripId(data.id);
       setShowBoarding(true);
-      setPassengerName("");
-      setSeatNumber("");
       await refresh();
     },
   });
@@ -416,11 +416,15 @@ export default function DriverDashboard() {
     },
   });
 
-  const boardMutation = useMutation({
-    mutationFn: boardPassenger,
+  const adjustSeatMutation = useMutation({
+    mutationFn: async (delta: number) => {
+      if (!displayedTrip) return;
+      const newAvailable = Math.max(0, Math.min(seatCapacity, availableSeats + delta));
+      await api.patch(`/trips/${displayedTrip.id}/available-seats`, {
+        availableSeats: newAvailable,
+      });
+    },
     onSuccess: async () => {
-      setPassengerName("");
-      setSeatNumber("");
       await refresh();
     },
   });
@@ -792,28 +796,8 @@ export default function DriverDashboard() {
             boardedCount={boardedCount}
             isFull={isFull}
             passengers={passengers}
-            passengerName={passengerName}
-            seatNumber={seatNumber}
-            onPassengerNameChange={setPassengerName}
-            onSeatNumberChange={setSeatNumber}
-            onBoardPassenger={() => {
-              const name = passengerName.trim();
-              if (!name) return;
-
-              const rawSeat = seatNumber.trim();
-              let parsedSeat: number | undefined;
-
-              if (rawSeat) {
-                const value = Number(rawSeat);
-                if (Number.isInteger(value) && value > 0) parsedSeat = value;
-              }
-
-              boardMutation.mutate({
-                tripId: displayedTrip.id,
-                passengerName: name,
-                ...(parsedSeat !== undefined ? { seatNumber: parsedSeat } : {}),
-              });
-            }}
+            onAdjustSeat={(delta) => adjustSeatMutation.mutate(delta)}
+            adjustSeatPending={adjustSeatMutation.isPending}
             onStartBoarding={() => startBoardingMutation.mutate(displayedTrip.id)}
             onStartTrip={() => startTripMutation.mutate(displayedTrip.id)}
             onApproaching={() => approachingMutation.mutate(displayedTrip.id)}
@@ -822,12 +806,10 @@ export default function DriverDashboard() {
             startTripPending={startTripMutation.isPending}
             approachingPending={approachingMutation.isPending}
             arrivedPending={arrivedMutation.isPending}
-            boardPending={boardMutation.isPending}
             startBoardingError={getApiErrorMessage(startBoardingMutation.error)}
             startTripError={getApiErrorMessage(startTripMutation.error)}
             approachingError={getApiErrorMessage(approachingMutation.error)}
             arrivedError={getApiErrorMessage(arrivedMutation.error)}
-            boardingError={getApiErrorMessage(boardMutation.error)}
             boardingSummaryLoading={boardingSummaryQuery.isLoading}
             boardingSummaryError={boardingSummaryQuery.isError}
             terminalQueuePosition={displayedTrip.terminalQueuePosition ?? null}
@@ -916,11 +898,8 @@ type DriverTripCardProps = {
   boardedCount: number;
   isFull: boolean;
   passengers: BoardingSummary["boardings"];
-  passengerName: string;
-  seatNumber: string;
-  onPassengerNameChange: (value: string) => void;
-  onSeatNumberChange: (value: string) => void;
-  onBoardPassenger: () => void;
+  onAdjustSeat: (delta: number) => void;
+  adjustSeatPending: boolean;
   onStartBoarding: () => void;
   onStartTrip: () => void;
   onApproaching: () => void;
@@ -929,12 +908,10 @@ type DriverTripCardProps = {
   startTripPending: boolean;
   approachingPending: boolean;
   arrivedPending: boolean;
-  boardPending: boolean;
   startBoardingError: string | null;
   startTripError: string | null;
   approachingError: string | null;
   arrivedError: string | null;
-  boardingError: string | null;
   boardingSummaryLoading: boolean;
   boardingSummaryError: boolean;
   terminalQueuePosition: number | null;
@@ -952,11 +929,8 @@ function DriverTripCard({
   boardedCount,
   isFull,
   passengers,
-  passengerName,
-  seatNumber,
-  onPassengerNameChange,
-  onSeatNumberChange,
-  onBoardPassenger,
+  onAdjustSeat,
+  adjustSeatPending,
   onStartBoarding,
   onStartTrip,
   onApproaching,
@@ -965,12 +939,10 @@ function DriverTripCard({
   startTripPending,
   approachingPending,
   arrivedPending,
-  boardPending,
   startBoardingError,
   startTripError,
   approachingError,
   arrivedError,
-  boardingError,
   boardingSummaryLoading,
   boardingSummaryError,
   terminalQueuePosition,
@@ -1093,7 +1065,7 @@ function DriverTripCard({
         </div>
       )}
 
-      {/* BOARDING */}
+      {/* BOARDING (simplified) */}
       {leg.status === "BOARDING" && (
         <div className="border-b border-slate-100 p-6 dark:border-slate-800">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1143,92 +1115,40 @@ function DriverTripCard({
                 </div>
               )}
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                <Field
-                  label="Passenger Name"
-                  value={passengerName}
-                  onChange={onPassengerNameChange}
-                  placeholder="Passenger name"
-                />
-                <Field
-                  label="Seat Number"
-                  value={seatNumber}
-                  onChange={onSeatNumberChange}
-                  placeholder="Optional"
-                  type="number"
-                />
-              </div>
-
-              <button
-                type="button"
-                disabled={boardPending || isFull || !passengerName.trim()}
-                onClick={onBoardPassenger}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
-              >
-                {boardPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {boardPending ? "Boarding..." : "Board Passenger"}
-              </button>
-
-              {boardingError && <ErrorBox message={boardingError} />}
-
-              <div className="mt-6">
-                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
-                  <Users className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                  Boarded Passengers
-                </div>
-                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {boardedCount} / {seatCapacity}
-                </div>
-
-                <div className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
-                  {passengers.length === 0 ? (
-                    <div className="p-4 text-sm text-slate-500 dark:text-slate-400">
-                      No passengers boarded yet.
-                    </div>
-                  ) : (
-                    passengers.map((passenger) => (
-                      <div
-                        key={passenger.id}
-                        className="flex items-center justify-between gap-4 p-4"
-                      >
-                        <div>
-                          <div className="font-medium text-slate-900 dark:text-white">
-                            {passenger.passengerName}
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            {formatDate(passenger.boardedAt)}
-                          </div>
-                        </div>
-                        <div className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
-                          Seat {passenger.seatNumber ?? "-"}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {boardedCount > 0 && (
-                <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
-                  <div className="font-semibold text-emerald-900 dark:text-emerald-200">
-                    Ready to leave {isReturn ? "terminal" : "municipality"}
-                  </div>
-                  <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
-                    Start Trip changes this operational leg to EN_ROUTE and activates
-                    GPS tracking.
-                  </p>
+              {/* Simple seat adjustment controls */}
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="flex items-center gap-4">
                   <button
                     type="button"
-                    disabled={startTripPending}
-                    onClick={onStartTrip}
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+                    onClick={() => onAdjustSeat(1)}
+                    disabled={adjustSeatPending || availableSeats >= seatCapacity}
+                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Increase available seats"
                   >
-                    {startTripPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {startTripPending ? "Starting Trip..." : "Start Trip"}
+                    +
                   </button>
-                  {startTripError && <ErrorBox message={startTripError} />}
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-slate-900 dark:text-white">
+                      {availableSeats}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      available
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onAdjustSeat(-1)}
+                    disabled={adjustSeatPending || availableSeats <= 0}
+                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-2xl font-bold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Decrease available seats"
+                  >
+                    −
+                  </button>
                 </div>
-              )}
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Tap + when a passenger leaves, tap − when a passenger boards.
+                </p>
+              </div>
             </div>
           )}
         </div>
