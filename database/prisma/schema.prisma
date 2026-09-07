@@ -1,0 +1,668 @@
+////////////////////////////////////////////////////////////
+//
+// Terminalink
+// Production Schema v2.0
+//
+// Trip = parent journey
+// TripLeg = operational movement
+//
+// OUTBOUND:
+//   MUNICIPALITY -> TERMINAL
+//
+// RETURN:
+//   TERMINAL -> MUNICIPALITY
+//
+////////////////////////////////////////////////////////////
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+////////////////////////////////////////////////////////////
+// ENUMS
+////////////////////////////////////////////////////////////
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  DRIVER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum QRCodeStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  RELEASED
+}
+
+enum TripDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum TripStatus {
+  WAITING
+  BOARDING
+  DEPARTED
+  EN_ROUTE
+  APPROACHING
+  DOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum TripLegType {
+  OUTBOUND
+  RETURN
+}
+
+enum TripLegStatus {
+  WAITING
+  BOARDING
+  EN_ROUTE
+  APPROACHING
+  ARRIVED
+  COMPLETED
+  CANCELLED
+}
+
+enum TripPointType {
+  MUNICIPALITY
+  TERMINAL
+}
+
+enum GateType {
+  INBOUND
+  OUTBOUND
+}
+
+enum QueueStatus {
+  WAITING
+  BOARDING
+  DEPARTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  QR_SCAN
+  START_TRIP
+  END_TRIP
+}
+
+enum PaymentMethod {
+  CASH
+  QR
+  CARD
+}
+
+////////////////////////////////////////////////////////////
+// USERS
+////////////////////////////////////////////////////////////
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique(map: "uk_user_username")
+  passwordHash String
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+
+  firstName   String
+  middleName  String?
+  lastName    String
+  displayName String
+
+  phone String?
+  email String? @unique(map: "uk_user_email")
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver                DriverProfile?
+  dispatcher            DispatcherProfile?
+  auditLogs             AuditLog[]
+  assignedByAssignments VehicleAssignment[] @relation("AssignedBy")
+
+  @@index([role], map: "idx_user_role")
+  @@index([status], map: "idx_user_status")
+  @@index([lastName], map: "idx_user_lastname")
+}
+
+////////////////////////////////////////////////////////////
+// DRIVER PROFILE
+////////////////////////////////////////////////////////////
+
+model DriverProfile {
+  id            String @id @default(cuid())
+  userId        String
+  cooperativeId String
+
+  licenseNumber String
+  licenseExpiry DateTime?
+
+  emergencyContact String?
+  emergencyPhone   String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  cooperative Cooperative @relation(fields: [cooperativeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  assignments VehicleAssignment[]
+  trips       Trip[]
+
+  @@unique([userId], map: "uk_driver_user")
+  @@unique([licenseNumber], map: "uk_driver_license")
+  @@index([cooperativeId], map: "idx_driver_cooperative")
+  @@index([isActive], map: "idx_driver_active")
+}
+
+////////////////////////////////////////////////////////////
+// DISPATCHER PROFILE
+////////////////////////////////////////////////////////////
+
+model DispatcherProfile {
+  id           String @id @default(cuid())
+  userId       String
+  terminalName String
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  gateEvents GateEvent[]
+
+  @@unique([userId], map: "uk_dispatcher_user")
+  @@index([isActive], map: "idx_dispatcher_active")
+}
+
+////////////////////////////////////////////////////////////
+// COOPERATIVES
+////////////////////////////////////////////////////////////
+
+model Cooperative {
+  id            String  @id @default(cuid())
+  name          String
+  code          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles Vehicle[]
+  drivers  DriverProfile[]
+
+  @@unique([name], map: "uk_coop_name")
+  @@unique([code], map: "uk_coop_code")
+  @@index([active], map: "idx_coop_active")
+}
+
+////////////////////////////////////////////////////////////
+// MUNICIPALITIES
+////////////////////////////////////////////////////////////
+
+model Municipality {
+  id   String @id @default(cuid())
+  name String
+
+  latitude  Float?
+  longitude Float?
+  mapZoom   Float?
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  originRoutes      Route[] @relation("OriginMunicipality")
+  destinationRoutes Route[] @relation("DestinationMunicipality")
+  trips             Trip[]
+
+  @@unique([name], map: "uk_municipality_name")
+  @@index([active], map: "idx_municipality_active")
+}
+
+////////////////////////////////////////////////////////////
+// SYSTEM SETTINGS
+////////////////////////////////////////////////////////////
+
+model SystemSetting {
+  id          String  @id @default(cuid())
+  key         String
+  value       String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([key], map: "uk_setting_key")
+}
+
+////////////////////////////////////////////////////////////
+// VEHICLES
+////////////////////////////////////////////////////////////
+
+model Vehicle {
+  id            String @id @default(cuid())
+  cooperativeId String
+
+  plateNumber  String
+  bodyNumber   String?
+  seatCapacity Int
+
+  make      String?
+  model     String?
+  yearModel Int?
+  color     String?
+
+  qrToken String
+
+  status VehicleStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  cooperative  Cooperative         @relation(fields: [cooperativeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignments  VehicleAssignment[]
+  trips        Trip[]
+  vehicleState VehicleState?
+  gpsHistory   GPSHistory[]
+
+  @@unique([plateNumber], map: "uk_vehicle_plate")
+  @@unique([qrToken], map: "uk_vehicle_qr")
+  @@index([cooperativeId], map: "idx_vehicle_cooperative")
+  @@index([status], map: "idx_vehicle_status")
+}
+
+////////////////////////////////////////////////////////////
+// VEHICLE ASSIGNMENTS
+////////////////////////////////////////////////////////////
+
+model VehicleAssignment {
+  id               String  @id @default(cuid())
+  driverId         String
+  vehicleId        String
+  assignedByUserId String?
+
+  status AssignmentStatus @default(ACTIVE)
+
+  assignedAt DateTime  @default(now())
+  releasedAt DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver     DriverProfile @relation(fields: [driverId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vehicle    Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedBy User?         @relation("AssignedBy", fields: [assignedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([driverId, vehicleId, assignedAt], map: "uk_assignment_history")
+  @@index([driverId], map: "idx_assignment_driver")
+  @@index([vehicleId], map: "idx_assignment_vehicle")
+  @@index([status], map: "idx_assignment_status")
+  @@index([assignedAt], map: "idx_assignment_assigned")
+}
+
+////////////////////////////////////////////////////////////
+// ROUTES
+////////////////////////////////////////////////////////////
+
+model Route {
+  id            String @id @default(cuid())
+  originId      String
+  destinationId String
+
+  distanceKm       Float
+  estimatedMinutes Int
+
+  displayOrder Int     @default(0)
+  active       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  origin      Municipality @relation("OriginMunicipality", fields: [originId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  destination Municipality @relation("DestinationMunicipality", fields: [destinationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  trips Trip[]
+
+  @@unique([originId, destinationId], map: "uk_route_origin_destination")
+  @@index([originId], map: "idx_route_origin")
+  @@index([destinationId], map: "idx_route_destination")
+  @@index([active], map: "idx_route_active")
+  @@index([displayOrder], map: "idx_route_display_order")
+}
+
+////////////////////////////////////////////////////////////
+// TRIP
+////////////////////////////////////////////////////////////
+
+model Trip {
+  id         String @id @default(cuid())
+  tripNumber String
+
+  driverId       String
+  vehicleId      String
+  routeId        String
+  municipalityId String
+
+  direction TripDirection
+  status    TripStatus    @default(WAITING)
+
+  seatCapacity   Int
+  availableSeats Int
+
+  startedAt         DateTime?
+  boardingStartedAt DateTime?
+  departedAt        DateTime?
+  arrivedAt         DateTime?
+  completedAt       DateTime?
+
+  estimatedArrival DateTime?
+
+  cancelReason String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  driver       DriverProfile @relation(fields: [driverId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vehicle      Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  route        Route         @relation(fields: [routeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  municipality Municipality  @relation(fields: [municipalityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  legs          TripLeg[]
+  gateEvents    GateEvent[]
+  boardings     Boarding[]
+  fares         Fare[]
+  seatHistory   SeatHistory[]
+  gpsHistory    GPSHistory[]
+  vehicleStates VehicleState[]
+
+  @@unique([tripNumber], map: "uk_trip_number")
+  @@index([status], map: "idx_trip_status")
+  @@index([direction], map: "idx_trip_direction")
+  @@index([vehicleId], map: "idx_trip_vehicle")
+  @@index([driverId], map: "idx_trip_driver")
+  @@index([municipalityId], map: "idx_trip_municipality")
+  @@index([estimatedArrival], map: "idx_trip_eta")
+}
+
+////////////////////////////////////////////////////////////
+// TRIP LEG
+////////////////////////////////////////////////////////////
+
+model TripLeg {
+  id                   String         @id @default(cuid())
+  tripId               String
+  legType              TripLegType
+  originType           TripPointType
+  destinationType      TripPointType
+  status               TripLegStatus  @default(WAITING)
+
+  boardingStartedAt    DateTime?
+  startedAt            DateTime?
+  approachingAt        DateTime?
+  arrivedAt            DateTime?
+  completedAt          DateTime?
+
+  terminalVerificationToken    String?   @unique
+  terminalVerificationIssuedAt DateTime?
+
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  queueEntries QueueEntry[]
+  boardings    Boarding[]
+  gpsHistory   GPSHistory[]
+
+  @@index([tripId], map: "idx_trip_leg_trip")
+  @@index([status], map: "idx_trip_leg_status")
+  @@index([legType], map: "idx_trip_leg_type")
+  @@index([tripId, legType], map: "idx_trip_leg_trip_type")
+}
+
+////////////////////////////////////////////////////////////
+// LIVE VEHICLE STATE
+////////////////////////////////////////////////////////////
+
+model VehicleState {
+  id           String  @id @default(cuid())
+  vehicleId    String  @unique
+  activeTripId String?
+
+  latitude  Float?
+  longitude Float?
+
+  speedKph Float?
+  heading  Float?
+  accuracy Float?
+
+  lastGpsAt DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  vehicle    Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  activeTrip Trip?   @relation(fields: [activeTripId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([activeTripId], map: "idx_vs_trip")
+  @@index([lastGpsAt], map: "idx_vs_lastgps")
+}
+
+////////////////////////////////////////////////////////////
+// GPS HISTORY
+////////////////////////////////////////////////////////////
+
+model GPSHistory {
+  id        String @id @default(cuid())
+  tripId    String
+  tripLegId String
+  vehicleId String
+
+  latitude  Float
+  longitude Float
+
+  speedKph Float?
+  heading  Float?
+  accuracy Float?
+
+  recordedAt DateTime @default(now())
+
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tripLeg TripLeg @relation(fields: [tripLegId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tripId], map: "idx_gps_trip")
+  @@index([tripLegId], map: "idx_gps_leg")
+  @@index([vehicleId], map: "idx_gps_vehicle")
+  @@index([recordedAt], map: "idx_gps_time")
+}
+
+////////////////////////////////////////////////////////////
+// GATE EVENTS
+////////////////////////////////////////////////////////////
+
+model GateEvent {
+  id           String @id @default(cuid())
+  tripId       String
+  dispatcherId String
+
+  gateType GateType
+  remarks  String?
+
+  scannedAt DateTime @default(now())
+
+  trip       Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  dispatcher DispatcherProfile @relation(fields: [dispatcherId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([tripId], map: "idx_gate_trip")
+  @@index([dispatcherId], map: "idx_gate_dispatcher")
+  @@index([gateType], map: "idx_gate_type")
+}
+
+////////////////////////////////////////////////////////////
+// QUEUE
+////////////////////////////////////////////////////////////
+
+model QueueEntry {
+  id String @id @default(cuid())
+
+  tripLegId String
+
+  queuePosition Int
+  status        QueueStatus @default(WAITING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tripLeg TripLeg @relation(fields: [tripLegId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tripLegId], map: "idx_queue_leg")
+  @@index([queuePosition], map: "idx_queue_position")
+  @@index([status], map: "idx_queue_status")
+  @@index([tripLegId, queuePosition], map: "idx_queue_leg_position")
+}
+
+////////////////////////////////////////////////////////////
+// BOARDING
+////////////////////////////////////////////////////////////
+
+model Boarding {
+  id String @id @default(cuid())
+
+  tripId    String
+  tripLegId String
+
+  passengerName String
+  seatNumber    Int?
+
+  boardedAt DateTime @default(now())
+
+  trip    Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tripLeg TripLeg @relation(fields: [tripLegId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  fare Fare?
+
+  @@index([tripId], map: "idx_boarding_trip")
+  @@index([tripLegId], map: "idx_boarding_leg")
+  @@index([tripLegId, seatNumber], map: "idx_boarding_leg_seat")
+}
+
+////////////////////////////////////////////////////////////
+// FARES
+////////////////////////////////////////////////////////////
+
+model Fare {
+  id String @id @default(cuid())
+
+  tripId     String
+  boardingId String?
+
+  passengerName String
+
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod
+
+  paidAt DateTime @default(now())
+
+  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  boarding Boarding? @relation(fields: [boardingId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([boardingId], map: "uk_fare_boarding")
+  @@index([tripId], map: "idx_fare_trip")
+  @@index([paidAt], map: "idx_fare_paid")
+}
+
+////////////////////////////////////////////////////////////
+// SEAT HISTORY
+////////////////////////////////////////////////////////////
+
+model SeatHistory {
+  id String @id @default(cuid())
+
+  tripId String
+
+  previousAvailableSeats Int
+  newAvailableSeats      Int
+
+  updatedByUserId String?
+
+  createdAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tripId], map: "idx_seat_trip")
+  @@index([createdAt], map: "idx_seat_created")
+}
+
+////////////////////////////////////////////////////////////
+// AUDIT LOG
+////////////////////////////////////////////////////////////
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  userId String?
+
+  action AuditAction
+
+  entity   String
+  entityId String?
+
+  summary String
+
+  details Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId], map: "idx_audit_user")
+  @@index([action], map: "idx_audit_action")
+  @@index([entity], map: "idx_audit_entity")
+  @@index([createdAt], map: "idx_audit_created")
+}

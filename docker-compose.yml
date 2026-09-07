@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: terminalink-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: terminalink
+      POSTGRES_USER: terminalink
+      POSTGRES_PASSWORD: terminalink
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U terminalink -d terminalink"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: terminalink-redis
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,27 @@
+{
+  "name": "terminalink",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.16.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@prisma/adapter-pg": "^7.9.0",
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0",
+    "prettier": "^3.6.2",
+    "prisma": "6.16.3",
+    "tsx": "^4.23.12",
+    "turbo": "^2.5.5",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@prisma/client": "6.16.3"
+  }
+}
