@@ -1,26 +1,63 @@
-// apps/web/src/auth/auth.service.ts
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 
-import type { AuthUser, AuthRole, LoginDto, AuthResponse } from "../types/auth";
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+  ) {}
 
-// Example service functions; adjust according to your actual implementation
-export async function loginWithCredentials(dto: LoginDto): Promise<AuthResponse> {
-  // implement login logic here (or re-export from another module)
-  throw new Error("Not implemented");
-}
+  async register(data: any) {
+    const passwordHash = await bcrypt.hash(data.password, 10);
 
-export function getRoleHome(role: AuthRole): string {
-  switch (role) {
-    case "ADMIN":
-      return "/";
-    case "DISPATCHER":
-      return "/dispatcher";
-    case "DRIVER":
-      return "/driver";
-    default:
-      return "/commuter";
+    return this.prisma.user.create({
+      data: {
+        username: data.username,
+        passwordHash,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        displayName: `${data.firstName} ${data.lastName}`,
+        role: data.role,
+      },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+      },
+    });
   }
-}
 
-export function isAuthenticated(user: AuthUser | null): boolean {
-  return !!user && !!user.role;
+  async login(username: string, password: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!valid) {
+      throw new UnauthorizedException();
+    }
+
+    const accessToken = this.jwt.sign({
+      sub: user.id,
+      username: user.username,
+      role: user.role,
+    });
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+      },
+    };
+  }
 }
