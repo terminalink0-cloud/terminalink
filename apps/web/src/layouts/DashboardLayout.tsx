@@ -92,7 +92,7 @@ export default function DashboardLayout() {
       {/* SIDEBAR */}
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r bg-white",
+          "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 flex-col border-r bg-white",
           "transition-transform duration-200 ease-in-out",
           "dark:border-slate-800 dark:bg-slate-900",
           "lg:translate-x-0",
@@ -100,7 +100,7 @@ export default function DashboardLayout() {
         ].join(" ")}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between border-b p-6 dark:border-slate-800">
+        <div className="flex shrink-0 items-center justify-between border-b p-6 dark:border-slate-800">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Terminalink</h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Transport Admin</p>
@@ -117,7 +117,7 @@ export default function DashboardLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-2 overflow-y-auto p-4">
+        <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
           {menu.map((item) => {
             const Icon = item.icon;
             return (
@@ -142,7 +142,10 @@ export default function DashboardLayout() {
         </nav>
 
         {/* Theme Toggle + Logout */}
-        <div className="space-y-1 border-t p-4 dark:border-slate-800">
+        <div
+          className="shrink-0 space-y-1 border-t px-4 pt-4 dark:border-slate-800"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
           <ThemeToggle />
           <button
             type="button"
