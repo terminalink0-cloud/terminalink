@@ -42,6 +42,23 @@ const initialForm = {
 };
 
 
+// Fields the user must fill in before submitting. Anything not
+// listed here (middleName, email, phone) is optional.
+const requiredFields: (keyof typeof initialForm)[] = [
+  "username",
+  "password",
+  "firstName",
+  "lastName",
+  "terminalName",
+];
+
+
+function labelFor(key: string) {
+  const spaced = key.replace(/([A-Z])/g, " $1");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+
 
 
 
@@ -133,6 +150,18 @@ setForm({
 
 
 
+function closeAndReset(){
+
+setForm(initialForm);
+
+setError("");
+
+onClose();
+
+}
+
+
+
 
 
 
@@ -196,6 +225,7 @@ flex
 items-center
 justify-center
 bg-black/40
+p-4
 "
 
 >
@@ -205,12 +235,15 @@ bg-black/40
 <div
 
 className="
+flex
+max-h-[90dvh]
 w-full
 max-w-xl
+flex-col
 rounded-xl
 bg-white
-p-6
 shadow-xl
+dark:bg-slate-900
 "
 
 >
@@ -221,15 +254,21 @@ shadow-xl
 <div
 
 className="
-mb-5
 flex
-justify-between
+shrink-0
 items-center
+justify-between
+border-b
+border-gray-100
+px-4
+py-4
+dark:border-slate-800
+sm:px-6
 "
 
 >
 
-<h2 className="text-xl font-bold">
+<h2 className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">
 
 Add Dispatcher
 
@@ -239,9 +278,19 @@ Add Dispatcher
 
 <button
 
-onClick={onClose}
+onClick={closeAndReset}
 
-className="text-gray-500"
+aria-label="Close"
+
+className="
+-m-2
+rounded-lg
+p-2
+text-gray-500
+hover:bg-gray-100
+dark:text-slate-400
+dark:hover:bg-slate-800
+"
 
 >
 
@@ -253,6 +302,19 @@ className="text-gray-500"
 </div>
 
 
+
+<div
+
+className="
+min-h-0
+flex-1
+overflow-y-auto
+px-4
+py-5
+sm:px-6
+"
+
+>
 
 
 
@@ -268,6 +330,8 @@ bg-red-100
 p-3
 text-sm
 text-red-700
+dark:bg-red-950/40
+dark:text-red-300
 "
 
 >
@@ -299,13 +363,49 @@ md:grid-cols-2
 {
 Object.entries(form).map(
 
-([key,value])=>(
+([key,value])=>{
 
+const label =
+labelFor(key);
+
+const isRequired =
+requiredFields.includes(
+key as keyof typeof form,
+);
+
+return (
+
+<div
+
+key={key}
+
+className="flex flex-col gap-1"
+
+>
+
+<label
+
+htmlFor={`add-dispatcher-${key}`}
+
+className="text-sm font-medium text-gray-700 dark:text-slate-300"
+
+>
+
+{label}
+
+{
+isRequired &&
+
+<span className="text-red-600 dark:text-red-400"> *</span>
+
+}
+
+</label>
 
 <input
 
 
-key={key}
+id={`add-dispatcher-${key}`}
 
 
 type={
@@ -321,13 +421,7 @@ key==="email"
 }
 
 
-placeholder={
-key
-.replace(
-/([A-Z])/g,
-" $1"
-)
-}
+placeholder={label}
 
 
 value={value}
@@ -343,16 +437,28 @@ e.target.value
 
 
 className="
+w-full
 rounded-lg
 border
+border-gray-300
+bg-white
 p-3
+text-gray-900
+placeholder:text-gray-400
+dark:border-slate-700
+dark:bg-slate-800
+dark:text-white
+dark:placeholder:text-slate-500
 "
 
 
 />
 
+</div>
 
-)
+);
+
+}
 
 )
 
@@ -364,18 +470,25 @@ p-3
 
 
 
-
-
+</div>
 
 
 
 <div
 
 className="
-mt-6
 flex
-justify-end
+shrink-0
+flex-col-reverse
 gap-3
+border-t
+border-gray-100
+px-4
+py-4
+dark:border-slate-800
+sm:flex-row
+sm:justify-end
+sm:px-6
 "
 
 >
@@ -384,13 +497,21 @@ gap-3
 
 <button
 
-onClick={onClose}
+onClick={closeAndReset}
 
 className="
+w-full
 rounded-lg
 border
+border-gray-300
 px-4
 py-2
+text-gray-700
+hover:bg-gray-50
+dark:border-slate-700
+dark:text-slate-300
+dark:hover:bg-slate-800
+sm:w-auto
 "
 
 >
@@ -413,12 +534,15 @@ onClick={submit}
 
 
 className="
+w-full
 rounded-lg
 bg-blue-600
 px-4
 py-2
 text-white
+hover:bg-blue-700
 disabled:opacity-50
+sm:w-auto
 "
 
 >
