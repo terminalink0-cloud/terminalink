@@ -5,7 +5,10 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  // CHANGED: sessionStorage, to match AuthContext.tsx. The token is
+  // now stored per-tab instead of shared across the whole browser,
+  // so it has to be read from the same place it's written.
+  const token = sessionStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
