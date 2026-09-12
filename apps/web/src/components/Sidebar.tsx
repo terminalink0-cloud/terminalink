@@ -99,14 +99,14 @@ export default function Sidebar() {
 
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r bg-white p-6",
+          "fixed inset-y-0 left-0 z-50 flex h-dvh w-64 flex-col border-r bg-white p-6",
           "transition-transform duration-200 ease-in-out",
           "dark:border-slate-800 dark:bg-slate-900",
           "lg:static lg:h-auto lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex shrink-0 items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Terminalink
           </h1>
@@ -121,11 +121,11 @@ export default function Sidebar() {
           </button>
         </div>
 
-        <p className="mb-8 text-sm text-gray-500 dark:text-slate-400">
+        <p className="mb-8 shrink-0 text-sm text-gray-500 dark:text-slate-400">
           {role ?? "No role assigned"}
         </p>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto">
+        <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pb-6">
           {visibleLinks.map((link) => (
             <NavLink
               key={link.path}
