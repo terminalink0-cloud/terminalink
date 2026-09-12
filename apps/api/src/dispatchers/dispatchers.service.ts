@@ -8,6 +8,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
+import * as bcrypt from "bcrypt";
+
 import {
   GateType,
   Prisma,
@@ -29,6 +31,14 @@ import {
 import {
   UpdateDispatcherDto,
 } from "./dto/update-dispatcher.dto";
+
+
+// ASSUMPTION: bcrypt with 10 salt rounds, matching common Nest/Prisma
+// conventions. If the rest of the app hashes passwords differently
+// (e.g. argon2, or a different round count in an AuthService/UsersService),
+// switch this to match so dispatcher accounts aren't hashed inconsistently
+// with everyone else's.
+const SALT_ROUNDS = 10;
 
 
 const publicUserSelect = {
@@ -103,6 +113,25 @@ type DispatcherTrip =
   }>;
 
 
+function buildDisplayName(
+  firstName?: string | null,
+  middleName?: string | null,
+  lastName?: string | null,
+) {
+  return [
+    firstName,
+    middleName,
+    lastName,
+  ]
+    .filter(
+      (part) =>
+        !!part &&
+        part.trim().length > 0,
+    )
+    .join(" ");
+}
+
+
 @Injectable()
 export class DispatchersService {
   constructor(
@@ -139,99 +168,6 @@ export class DispatchersService {
         : null;
 
 
-    let user:
-      | {
-          id: string;
-          role: string;
-          status: string;
-        }
-      | null =
-      null;
-
-
-    if (userId) {
-      user =
-        await this.prisma.user.findUnique({
-          where: {
-            id:
-              userId,
-          },
-
-          select: {
-            id: true,
-            role: true,
-            status: true,
-          },
-        });
-    }
-
-
-    if (
-      !user &&
-      username
-    ) {
-      user =
-        await this.prisma.user.findUnique({
-          where: {
-            username,
-          },
-
-          select: {
-            id: true,
-            role: true,
-            status: true,
-          },
-        });
-    }
-
-
-    if (!user) {
-      throw new BadRequestException(
-        "Dispatcher user could not be resolved. Provide a valid userId or username.",
-      );
-    }
-
-
-    if (
-      user.role !==
-      "DISPATCHER"
-    ) {
-      throw new BadRequestException(
-        "User must have DISPATCHER role",
-      );
-    }
-
-
-    if (
-      user.status !==
-      "ACTIVE"
-    ) {
-      throw new BadRequestException(
-        "Dispatcher user must be ACTIVE",
-      );
-    }
-
-
-    const existing =
-      await this.prisma.dispatcherProfile.findUnique({
-        where: {
-          userId:
-            user.id,
-        },
-
-        select: {
-          id: true,
-        },
-      });
-
-
-    if (existing) {
-      throw new BadRequestException(
-        "Dispatcher profile already exists for this user",
-      );
-    }
-
-
     const terminalName =
       typeof raw.terminalName ===
       "string"
@@ -253,23 +189,297 @@ export class DispatchersService {
         : true;
 
 
-    return this.prisma.dispatcherProfile.create({
-      data: {
-        userId:
-          user.id,
+    // --------------------------------------------------------
+    // PATH 1: ATTACH TO AN EXISTING USER
+    //
+    // If a userId is given, or the username already belongs to
+    // a registered account, reuse that user instead of creating
+    // a new one. This supports promoting a user who already has
+    // the DISPATCHER role (e.g. provisioned elsewhere) into a
+    // dispatcher profile.
+    //
+    // A userId that doesn't resolve to any user is treated as an
+    // error rather than silently falling through to username
+    // matching or user creation - the caller asked for a specific
+    // account and it doesn't exist.
+    // --------------------------------------------------------
 
-        terminalName,
+    let existingUser:
+      | {
+          id: string;
+          role: string;
+          status: string;
+        }
+      | null =
+      null;
 
-        isActive,
-      },
 
-      include: {
-        user: {
-          select:
-            publicUserSelect,
+    if (userId) {
+      existingUser =
+        await this.prisma.user.findUnique({
+          where: {
+            id:
+              userId,
+          },
+
+          select: {
+            id: true,
+            role: true,
+            status: true,
+          },
+        });
+
+
+      if (!existingUser) {
+        throw new BadRequestException(
+          "No user found for the provided userId.",
+        );
+      }
+    } else if (username) {
+      existingUser =
+        await this.prisma.user.findUnique({
+          where: {
+            username,
+          },
+
+          select: {
+            id: true,
+            role: true,
+            status: true,
+          },
+        });
+    }
+
+
+    if (existingUser) {
+      if (
+        existingUser.role !==
+        "DISPATCHER"
+      ) {
+        throw new BadRequestException(
+          "User must have DISPATCHER role",
+        );
+      }
+
+
+      if (
+        existingUser.status !==
+        "ACTIVE"
+      ) {
+        throw new BadRequestException(
+          "Dispatcher user must be ACTIVE",
+        );
+      }
+
+
+      const existingProfile =
+        await this.prisma.dispatcherProfile.findUnique({
+          where: {
+            userId:
+              existingUser.id,
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+
+      if (existingProfile) {
+        throw new BadRequestException(
+          "Dispatcher profile already exists for this user",
+        );
+      }
+
+
+      return this.prisma.dispatcherProfile.create({
+        data: {
+          userId:
+            existingUser.id,
+
+          terminalName,
+
+          isActive,
         },
-      },
-    });
+
+        include: {
+          user: {
+            select:
+              publicUserSelect,
+          },
+        },
+      });
+    }
+
+
+    // --------------------------------------------------------
+    // PATH 2: CREATE A BRAND NEW DISPATCHER USER
+    //
+    // No existing account matched, so this is a genuinely new
+    // dispatcher. Provision the User (role DISPATCHER, status
+    // ACTIVE) and its DispatcherProfile together in a single
+    // transaction so we never end up with one but not the other.
+    // --------------------------------------------------------
+
+    if (!username) {
+      throw new BadRequestException(
+        "Username is required to create a new dispatcher.",
+      );
+    }
+
+
+    const password =
+      typeof raw.password ===
+      "string"
+        ? raw.password
+        : "";
+
+
+    if (
+      !password ||
+      password.length < 6
+    ) {
+      throw new BadRequestException(
+        "Password must be at least 6 characters.",
+      );
+    }
+
+
+    const firstName =
+      typeof raw.firstName ===
+      "string"
+        ? raw.firstName.trim()
+        : "";
+
+
+    const lastName =
+      typeof raw.lastName ===
+      "string"
+        ? raw.lastName.trim()
+        : "";
+
+
+    if (
+      !firstName ||
+      !lastName
+    ) {
+      throw new BadRequestException(
+        "First name and last name are required.",
+      );
+    }
+
+
+    const middleName =
+      typeof raw.middleName ===
+        "string" &&
+      raw.middleName.trim()
+        .length > 0
+        ? raw.middleName.trim()
+        : null;
+
+
+    const email =
+      typeof raw.email ===
+        "string" &&
+      raw.email.trim()
+        .length > 0
+        ? raw.email.trim()
+        : null;
+
+
+    const phone =
+      typeof raw.phone ===
+        "string" &&
+      raw.phone.trim()
+        .length > 0
+        ? raw.phone.trim()
+        : null;
+
+
+    const passwordHash =
+      await bcrypt.hash(
+        password,
+        SALT_ROUNDS,
+      );
+
+
+    const displayName =
+      buildDisplayName(
+        firstName,
+        middleName,
+        lastName,
+      );
+
+
+    // Loosely typed like the rest of this file's DTO handling,
+    // to sidestep strict Prisma enum typing for role/status -
+    // matches the existing `{ role: string; status: string }`
+    // pattern used above for `existingUser`.
+    const newUserData: Record<
+      string,
+      unknown
+    > = {
+      username,
+
+      password:
+        passwordHash,
+
+      role: "DISPATCHER",
+
+      status: "ACTIVE",
+
+      firstName,
+      middleName,
+      lastName,
+      displayName,
+
+      email,
+      phone,
+    };
+
+
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const user =
+            await tx.user.create({
+              data:
+                newUserData as Prisma.UserCreateInput,
+            });
+
+
+          return tx.dispatcherProfile.create({
+            data: {
+              userId:
+                user.id,
+
+              terminalName,
+
+              isActive,
+            },
+
+            include: {
+              user: {
+                select:
+                  publicUserSelect,
+              },
+            },
+          });
+        },
+      );
+    } catch (err: any) {
+      if (
+        err?.code ===
+        "P2002"
+      ) {
+        throw new BadRequestException(
+          "A user with this username, email, or phone already exists.",
+        );
+      }
+
+
+      throw err;
+    }
   }
 
 
@@ -331,6 +541,15 @@ export class DispatchersService {
 
         select: {
           id: true,
+
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+            },
+          },
         },
       });
 
@@ -372,20 +591,147 @@ export class DispatchersService {
     }
 
 
-    return this.prisma.dispatcherProfile.update({
-      where: {
-        id,
-      },
+    // --------------------------------------------------------
+    // USER-OWNED FIELDS
+    //
+    // firstName / middleName / lastName / email / phone all live
+    // on the related User, not on DispatcherProfile. Previously
+    // these were accepted by validation but silently dropped -
+    // they're now applied as a nested update. displayName is
+    // recomputed whenever any name part changes, using the
+    // existing values for parts that weren't sent.
+    // --------------------------------------------------------
 
-      data,
+    const userData: Prisma.UserUpdateInput =
+      {};
 
-      include: {
-        user: {
-          select:
-            publicUserSelect,
+
+    let firstName =
+      existing.user.firstName;
+
+    let middleName =
+      existing.user.middleName;
+
+    let lastName =
+      existing.user.lastName;
+
+    let nameChanged =
+      false;
+
+
+    if (
+      typeof raw.firstName ===
+      "string"
+    ) {
+      firstName =
+        raw.firstName.trim();
+
+      userData.firstName =
+        firstName;
+
+      nameChanged = true;
+    }
+
+
+    if (
+      typeof raw.middleName ===
+      "string"
+    ) {
+      middleName =
+        raw.middleName.trim() ||
+        null;
+
+      userData.middleName =
+        middleName;
+
+      nameChanged = true;
+    }
+
+
+    if (
+      typeof raw.lastName ===
+      "string"
+    ) {
+      lastName =
+        raw.lastName.trim();
+
+      userData.lastName =
+        lastName;
+
+      nameChanged = true;
+    }
+
+
+    if (nameChanged) {
+      userData.displayName =
+        buildDisplayName(
+          firstName,
+          middleName,
+          lastName,
+        );
+    }
+
+
+    if (
+      typeof raw.email ===
+      "string"
+    ) {
+      userData.email =
+        raw.email.trim() ||
+        null;
+    }
+
+
+    if (
+      typeof raw.phone ===
+      "string"
+    ) {
+      userData.phone =
+        raw.phone.trim() ||
+        null;
+    }
+
+
+    if (
+      Object.keys(
+        userData,
+      ).length > 0
+    ) {
+      data.user = {
+        update:
+          userData,
+      };
+    }
+
+
+    try {
+      return await this.prisma.dispatcherProfile.update({
+        where: {
+          id,
         },
-      },
-    });
+
+        data,
+
+        include: {
+          user: {
+            select:
+              publicUserSelect,
+          },
+        },
+      });
+    } catch (err: any) {
+      if (
+        err?.code ===
+        "P2002"
+      ) {
+        throw new BadRequestException(
+          "A user with this email or phone already exists.",
+        );
+      }
+
+
+      throw err;
+    }
   }
 
 
