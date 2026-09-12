@@ -421,8 +421,7 @@ export class DispatchersService {
     > = {
       username,
 
-      password:
-        passwordHash,
+      passwordHash,
 
       role: "DISPATCHER",
 
