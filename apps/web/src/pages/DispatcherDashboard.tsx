@@ -269,9 +269,9 @@ export default function DispatcherDashboard() {
 
   if (dashboardQuery.isLoading || tripsQuery.isLoading) {
     return (
-      <div className="min-h-dvh bg-gradient-to-b from-blue-50/60 via-gray-50 to-gray-50 p-6 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950">
-        <div className="flex items-center gap-3 rounded-2xl bg-white p-6 text-gray-600 shadow-sm dark:bg-slate-900 dark:text-slate-300">
-          <SpinnerIcon className="h-5 w-5 text-blue-600" />
+      <div className="min-h-dvh bg-gradient-to-b from-blue-50/60 via-gray-50 to-gray-50 p-3 sm:p-6 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950">
+        <div className="flex items-center gap-3 rounded-2xl bg-white p-5 text-sm text-gray-600 shadow-sm sm:p-6 sm:text-base dark:bg-slate-900 dark:text-slate-300">
+          <SpinnerIcon className="h-5 w-5 shrink-0 text-blue-600" />
           Loading dispatcher console...
         </div>
       </div>
@@ -280,10 +280,10 @@ export default function DispatcherDashboard() {
 
   if (dashboardQuery.isError || tripsQuery.isError) {
     return (
-      <div className="min-h-dvh bg-gradient-to-b from-blue-50/60 via-gray-50 to-gray-50 p-6 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950">
-        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700 shadow-sm dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+      <div className="min-h-dvh bg-gradient-to-b from-blue-50/60 via-gray-50 to-gray-50 p-3 sm:p-6 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950">
+        <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 shadow-sm sm:p-5 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           <AlertIcon />
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <h2 className="font-semibold">Unable to load dispatcher operations.</h2>
             <p className="mt-1 text-sm text-red-600 dark:text-red-300">
               Verify that the API is running on http://localhost:3001.
@@ -291,7 +291,7 @@ export default function DispatcherDashboard() {
             <button
               type="button"
               onClick={() => void refreshDispatcherData()}
-              className="mt-4 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+              className="mt-4 w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white hover:bg-red-700 active:bg-red-800 sm:w-auto sm:py-2.5"
             >
               Retry
             </button>
@@ -306,16 +306,16 @@ export default function DispatcherDashboard() {
   const arrivalError = getApiErrorMessage(arrivedMutation.error);
 
   return (
-    <div className="min-h-dvh space-y-6 bg-gradient-to-b from-blue-50/60 via-gray-50 to-gray-50 p-6 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950">
+    <div className="min-h-dvh space-y-4 bg-gradient-to-b from-blue-50/60 via-gray-50 to-gray-50 p-3 sm:space-y-6 sm:p-6 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950">
       {/* HEADER */}
-      <section className="rounded-2xl border border-blue-100/70 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900">
+      <section className="rounded-2xl border border-blue-100/70 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100 sm:h-14 sm:w-14 dark:bg-blue-950/40 dark:text-blue-300 dark:ring-blue-900">
               <DispatchIcon />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl dark:text-white">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl lg:text-3xl dark:text-white">
                 Dispatcher Console
               </h1>
               <p className="mt-1 text-sm text-gray-500 sm:text-base dark:text-slate-400">
@@ -323,18 +323,19 @@ export default function DispatcherDashboard() {
               </p>
             </div>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             <button
               type="button"
               onClick={() => navigate("/commuter")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 active:bg-blue-800 sm:w-auto sm:py-2.5"
             >
-              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 shrink-0" aria-hidden="true">
                 <path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h10.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
               </svg>
-              View Live Commuter Map
+              <span className="sm:hidden">View Commuter Map</span>
+              <span className="hidden sm:inline">View Live Commuter Map</span>
             </button>
-            <div className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-3.5 py-2 text-sm font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+            <div className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-3.5 py-2 text-sm font-medium text-blue-700 sm:w-auto dark:bg-blue-950/40 dark:text-blue-300">
               <RefreshIcon />
               Auto-refresh: 5s
             </div>
@@ -343,7 +344,7 @@ export default function DispatcherDashboard() {
       </section>
 
       {/* SUMMARY */}
-      <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
         <SummaryCard title="Waiting" value={dashboard?.waiting ?? 0} accent="gray" />
         <SummaryCard title="Boarding" value={dashboard?.boarding ?? 0} accent="blue" />
         <SummaryCard title="Departed" value={dashboard?.departed ?? 0} accent="green" />
@@ -352,15 +353,15 @@ export default function DispatcherDashboard() {
 
       {/* TERMINAL OPERATIONS */}
       <section className="overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-slate-900">
-        <div className="border-b border-gray-100 p-6 dark:border-slate-800">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Terminal Operations</h2>
+        <div className="border-b border-gray-100 p-4 sm:p-6 dark:border-slate-800">
+          <h2 className="text-lg font-bold text-gray-900 sm:text-xl dark:text-white">Terminal Operations</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Vehicle arrivals and current trip status.</p>
         </div>
 
         {trips.length === 0 ? (
-          <div className="p-10 text-center">
+          <div className="p-6 text-center sm:p-10">
             <EmptyTrayIcon />
-            <div className="mt-4 text-lg font-medium text-gray-700 dark:text-slate-300">No trips currently requiring terminal attention.</div>
+            <div className="mt-4 text-base font-medium text-gray-700 sm:text-lg dark:text-slate-300">No trips currently requiring terminal attention.</div>
             <div className="mt-2 text-sm text-gray-500 dark:text-slate-400">Approaching vehicles will appear here automatically.</div>
           </div>
         ) : (
@@ -579,20 +580,20 @@ function MobileTripCard({
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-slate-700 dark:text-slate-300">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-slate-700 dark:text-slate-300">
               #{queuePosition}
             </span>
-            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(trip.status)}`}>
+            <span className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(trip.status)}`}>
               {trip.status}
             </span>
           </div>
-          <h3 className="mt-2 font-semibold text-gray-900 dark:text-white">{trip.tripNumber ?? "-"}</h3>
-          <p className="text-sm text-gray-500 dark:text-slate-400">{getRouteName(trip)}</p>
+          <h3 className="mt-2 truncate font-semibold text-gray-900 dark:text-white">{trip.tripNumber ?? "-"}</h3>
+          <p className="truncate text-sm text-gray-500 dark:text-slate-400">{getRouteName(trip)}</p>
         </div>
         {trip.vehicle?.plateNumber && (
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <div className="font-medium text-gray-900 dark:text-white">{trip.vehicle.plateNumber}</div>
             <div className="text-xs text-gray-500 dark:text-slate-400">{getVehicleName(trip)}</div>
           </div>
@@ -647,7 +648,7 @@ function MobileTripCard({
                 type="button"
                 disabled={isArriving || !verificationToken}
                 onClick={onStartScan}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isArriving ? <SpinnerIcon className="h-4 w-4" /> : <QrIcon />}
                 {isArriving ? "Verifying..." : "Scan Terminal QR"}
@@ -735,12 +736,12 @@ function SummaryCard({
   };
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-slate-900">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{title}</p>
-        <span className={`h-2.5 w-2.5 rounded-full ${accentClasses[accent]}`} />
+    <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-6 dark:bg-slate-900">
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-xs font-medium text-gray-500 sm:text-sm dark:text-slate-400">{title}</p>
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accentClasses[accent]}`} />
       </div>
-      <h2 className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{value}</h2>
+      <h2 className="mt-2 text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">{value}</h2>
     </div>
   );
 }
