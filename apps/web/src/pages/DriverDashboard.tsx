@@ -441,9 +441,6 @@ export default function DriverDashboard() {
     onSuccess: async () => {
       await refresh();
     },
-    onError: (error) => {
-      alert(getApiErrorMessage(error) || "Failed to adjust seats");
-    },
   });
 
   const updateCapacityMutation = useMutation({
@@ -482,9 +479,9 @@ export default function DriverDashboard() {
   ) {
     return (
       <div className="min-h-screen bg-slate-50 transition-colors dark:bg-slate-950">
-        <div className="flex min-h-[60vh] items-center justify-center p-6">
-          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <Loader2 className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
+        <div className="flex min-h-[60vh] items-center justify-center p-4 sm:p-6">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-6 sm:py-5 dark:border-slate-800 dark:bg-slate-900">
+            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
             <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
               Loading driver dashboard...
             </span>
@@ -500,11 +497,11 @@ export default function DriverDashboard() {
 
   if (profileQuery.isError || tripsQuery.isError) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6 transition-colors dark:bg-slate-950">
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-6 dark:border-red-900/50 dark:bg-red-950/30">
+      <div className="min-h-screen bg-slate-50 p-4 transition-colors sm:p-6 dark:bg-slate-950">
+        <div className="rounded-2xl border border-red-100 bg-red-50 p-5 sm:p-6 dark:border-red-900/50 dark:bg-red-950/30">
           <div className="flex items-start gap-3">
             <XCircle className="mt-0.5 h-6 w-6 shrink-0 text-red-500 dark:text-red-400" />
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-semibold text-red-800 dark:text-red-200">
                 Unable to load driver dashboard
               </h2>
@@ -514,7 +511,7 @@ export default function DriverDashboard() {
               <button
                 type="button"
                 onClick={() => void refresh()}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700 active:bg-red-800 sm:w-auto sm:py-2"
               >
                 <RefreshCw className="h-4 w-4" />
                 Retry
@@ -532,15 +529,15 @@ export default function DriverDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 transition-colors dark:bg-slate-950">
-      <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+      <div className="mx-auto max-w-5xl space-y-4 p-3 sm:space-y-6 sm:p-6">
         {/* HEADER */}
-        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 p-6 text-white shadow-lg shadow-indigo-200/50 dark:shadow-none sm:p-8">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div>
+        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 p-5 text-white shadow-lg shadow-indigo-200/50 sm:p-8 dark:shadow-none">
+          <div className="flex flex-col gap-4 sm:gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-widest text-indigo-200">
                 Driver Dashboard
               </p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight">
+              <h1 className="mt-1 truncate text-2xl font-bold tracking-tight sm:text-3xl">
                 Welcome, {driverName}
               </h1>
               <p className="mt-2 max-w-md text-sm text-indigo-100">
@@ -548,17 +545,17 @@ export default function DriverDashboard() {
                 automatically.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <button
                 type="button"
                 onClick={() => navigate("/commuter")}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-50 active:bg-indigo-100 sm:w-auto sm:py-2.5"
               >
                 <MapPin className="h-4 w-4" />
                 Live Tracking
                 <ArrowUpRight className="h-4 w-4" />
               </button>
-              <div className="hidden items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm text-indigo-100 backdrop-blur sm:flex">
+              <div className="hidden items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm text-indigo-100 backdrop-blur sm:flex">
                 <RefreshCw className="h-4 w-4" />
                 Auto-refresh 5s
               </div>
@@ -567,22 +564,22 @@ export default function DriverDashboard() {
         </section>
 
         {/* ASSIGNED VEHICLE */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
             Assigned Vehicle
           </div>
 
           {assignedVehicle ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
                   <Bus className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="text-xl font-bold text-slate-900 dark:text-white">
+                <div className="min-w-0">
+                  <div className="truncate text-xl font-bold text-slate-900 dark:text-white">
                     {assignedVehicle.plateNumber ?? "-"}
                   </div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">
+                  <div className="truncate text-sm text-slate-500 dark:text-slate-400">
                     {[assignedVehicle.make, assignedVehicle.model]
                       .filter(Boolean)
                       .join(" ") || "Vehicle"}
@@ -590,15 +587,15 @@ export default function DriverDashboard() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 {isEditingCapacity ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <input
                       type="number"
                       min={1}
                       value={capacityInput}
                       onChange={(e) => setCapacityInput(e.target.value)}
-                      className="w-24 rounded-lg border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                      className="w-20 rounded-lg border border-slate-300 p-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                     />
                     <button
                       onClick={() => {
@@ -608,7 +605,7 @@ export default function DriverDashboard() {
                         }
                       }}
                       disabled={updateCapacityMutation.isPending}
-                      className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                      className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50"
                     >
                       {updateCapacityMutation.isPending ? "Saving..." : "Save"}
                     </button>
@@ -630,8 +627,9 @@ export default function DriverDashboard() {
                         setCapacityInput(String(assignedVehicle.seatCapacity ?? 0));
                         setIsEditingCapacity(true);
                       }}
-                      className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 active:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
                       title="Edit capacity"
+                      aria-label="Edit seat capacity"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -652,7 +650,7 @@ export default function DriverDashboard() {
         </section>
 
         {/* SUMMARY */}
-        <section className="grid gap-4 sm:grid-cols-3">
+        <section className="grid grid-cols-3 gap-2 sm:gap-4">
           <SummaryCard title="My Trips" value={trips.length} icon={<Bus className="h-5 w-5" />} />
           <SummaryCard
             title="Active Trips"
@@ -670,8 +668,8 @@ export default function DriverDashboard() {
 
         {/* CREATE NEW TRIP */}
         {!currentTrip && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="text-lg font-bold text-slate-900 sm:text-xl dark:text-white">
               Start a New Trip
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -680,7 +678,7 @@ export default function DriverDashboard() {
             </p>
 
             {!assignedVehicle ? (
-              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:p-5 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
                 No active vehicle is assigned to this driver. Vehicle assignment is
                 required before a trip can be created.
               </div>
@@ -790,7 +788,7 @@ export default function DriverDashboard() {
                       ...(tripNumber.trim() ? { tripNumber: tripNumber.trim() } : {}),
                     });
                   }}
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 active:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:shadow-none"
                 >
                   {createTripMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                   {createTripMutation.isPending ? "Creating Trip..." : "Create Trip"}
@@ -814,6 +812,7 @@ export default function DriverDashboard() {
             isFull={isFull}
             onAdjustSeat={(delta) => adjustSeatMutation.mutate(delta)}
             adjustSeatPending={adjustSeatMutation.isPending}
+            adjustSeatError={getApiErrorMessage(adjustSeatMutation.error)}
             onStartBoarding={() => startBoardingMutation.mutate(displayedTrip.id)}
             onStartTrip={() => startTripMutation.mutate(displayedTrip.id)}
             onApproaching={() => approachingMutation.mutate(displayedTrip.id)}
@@ -857,7 +856,7 @@ function EmptyTripState({
   onSelectTrip: (tripId: string) => void;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-900">
       <div className="mx-auto max-w-xl text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
           <ArrowRight className="h-7 w-7" />
@@ -888,7 +887,7 @@ function EmptyTripState({
             <button
               type="button"
               onClick={() => onSelectTrip(nextWaitingTrip.id)}
-              className="mt-5 w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              className="mt-5 w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 active:bg-indigo-800"
             >
               View Waiting Trip
             </button>
@@ -965,6 +964,7 @@ type DriverTripCardProps = {
   isFull: boolean;
   onAdjustSeat: (delta: number) => void;
   adjustSeatPending: boolean;
+  adjustSeatError: string | null;
   onStartBoarding: () => void;
   onStartTrip: () => void;
   onApproaching: () => void;
@@ -995,6 +995,7 @@ function DriverTripCard({
   isFull,
   onAdjustSeat,
   adjustSeatPending,
+  adjustSeatError,
   onStartBoarding,
   onStartTrip,
   onApproaching,
@@ -1023,18 +1024,18 @@ function DriverTripCard({
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {/* HEADER */}
-      <div className="border-b border-slate-100 p-6 dark:border-slate-800">
+      <div className="border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
+          <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Current Trip
             </div>
-            <h2 className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+            <h2 className="mt-1 truncate text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
               {trip.tripNumber}
             </h2>
-            <div className="mt-1 flex items-center gap-1.5 text-lg font-medium text-slate-600 dark:text-slate-300">
-              <MapPin className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-              {route}
+            <div className="mt-1 flex items-center gap-1.5 text-base font-medium text-slate-600 sm:text-lg dark:text-slate-300">
+              <MapPin className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+              <span className="truncate">{route}</span>
             </div>
           </div>
           <StatusBadge status={leg.status} />
@@ -1042,7 +1043,7 @@ function DriverTripCard({
       </div>
 
       {/* VEHICLE / ROUTE / CAPACITY */}
-      <div className="grid gap-5 border-b border-slate-100 p-6 dark:border-slate-800 md:grid-cols-3">
+      <div className="grid gap-4 border-b border-slate-100 p-4 sm:gap-5 sm:p-6 dark:border-slate-800 md:grid-cols-3">
         <InfoItem
           label="Vehicle"
           value={trip.vehicle?.plateNumber ?? "-"}
@@ -1063,7 +1064,7 @@ function DriverTripCard({
       </div>
 
       {/* DRIVER OPERATIONS */}
-      <div className="border-b border-slate-100 p-6 dark:border-slate-800">
+      <div className="border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
         <div className="text-sm font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
           Driver Operations
         </div>
@@ -1103,13 +1104,13 @@ function DriverTripCard({
 
       {/* WAITING */}
       {leg.status === "WAITING" && (
-        <div className="border-b border-slate-100 p-6 dark:border-slate-800">
+        <div className="border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
           {canStartBoarding ? (
             <button
               type="button"
               disabled={startBoardingPending}
               onClick={onStartBoarding}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 active:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:shadow-none"
             >
               {startBoardingPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {startBoardingPending ? "Starting Boarding..." : "Start Boarding"}
@@ -1131,10 +1132,10 @@ function DriverTripCard({
 
       {/* BOARDING */}
       {leg.status === "BOARDING" && (
-        <div className="border-b border-slate-100 p-6 dark:border-slate-800">
+        <div className="border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-slate-900 sm:text-xl dark:text-white">
                 Passenger Boarding
               </h3>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -1146,15 +1147,15 @@ function DriverTripCard({
             <button
               type="button"
               onClick={onToggleBoarding}
-              className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600"
+              className="w-full rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-900 active:bg-slate-950 md:w-auto dark:bg-slate-700 dark:hover:bg-slate-600"
             >
               {showBoarding ? "Hide Boarding" : "Show Boarding"}
             </button>
           </div>
 
           {showBoarding && (
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-800/40">
-              <div className="grid gap-4 sm:grid-cols-3">
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-800/40">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 <StatCard
                   label="Capacity"
                   value={boardingSummaryLoading ? "..." : seatCapacity}
@@ -1187,6 +1188,7 @@ function DriverTripCard({
                   adjustSeatPending={adjustSeatPending}
                   helperText="Tap + when a passenger leaves, tap − when a passenger boards."
                 />
+                {adjustSeatError && <ErrorBox message={adjustSeatError} />}
               </div>
 
               {/* START TRIP */}
@@ -1202,7 +1204,7 @@ function DriverTripCard({
                     type="button"
                     disabled={startTripPending}
                     onClick={onStartTrip}
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 sm:w-auto text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
                   >
                     {startTripPending && <Loader2 className="h-4 w-4 animate-spin" />}
                     {startTripPending ? "Starting Trip..." : "Start Trip"}
@@ -1217,7 +1219,7 @@ function DriverTripCard({
 
       {/* EN ROUTE */}
       {leg.status === "EN_ROUTE" && (
-        <div className="border-b border-slate-100 p-6 dark:border-slate-800">
+        <div className="border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
           <div className="rounded-2xl border border-violet-100 bg-violet-50 p-5 dark:border-violet-900/50 dark:bg-violet-950/30">
             <div className="flex items-center gap-2 font-semibold text-violet-900 dark:text-violet-200">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1252,6 +1254,7 @@ function DriverTripCard({
                   adjustSeatPending={adjustSeatPending}
                   helperText="Tap − when you pick up a passenger along the way, tap + when one gets off."
                 />
+                {adjustSeatError && <ErrorBox message={adjustSeatError} />}
               </div>
             </div>
 
@@ -1260,7 +1263,7 @@ function DriverTripCard({
                 type="button"
                 disabled={approachingPending}
                 onClick={onApproaching}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 sm:w-auto text-sm font-semibold text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
               >
                 {approachingPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {approachingPending ? "Generating QR..." : "Mark Approaching Terminal"}
@@ -1272,7 +1275,7 @@ function DriverTripCard({
                 type="button"
                 disabled={arrivedPending}
                 onClick={onArrived}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 sm:w-auto text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:shadow-none"
               >
                 {arrivedPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {arrivedPending ? "Completing..." : "Arrived at Municipality"}
@@ -1287,12 +1290,12 @@ function DriverTripCard({
 
       {/* APPROACHING / TERMINAL QR */}
       {leg.status === "APPROACHING" && (
-        <div className="border-b border-slate-100 p-6 dark:border-slate-800">
-          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-6 dark:border-orange-900/50 dark:bg-orange-950/30">
+        <div className="border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
+          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 sm:p-6 dark:border-orange-900/50 dark:bg-orange-950/30">
             <div className="text-xs font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-400">
               Terminal Verification
             </div>
-            <h3 className="mt-1 text-xl font-bold text-orange-900 dark:text-orange-200">
+            <h3 className="mt-1 text-lg font-bold text-orange-900 sm:text-xl dark:text-orange-200">
               Approaching Terminal
             </h3>
             <p className="mt-2 text-sm text-orange-800 dark:text-orange-300">
@@ -1301,7 +1304,7 @@ function DriverTripCard({
 
             {leg.terminalVerificationToken ? (
               <div className="mt-6 flex flex-col items-center">
-                <div className="rounded-2xl bg-white p-5 shadow-sm">
+                <div className="w-full max-w-[240px] rounded-2xl bg-white p-4 shadow-sm sm:p-5">
                   <QRCode
                     value={JSON.stringify({
                       type: "TERMINALINK_TERMINAL_VERIFICATION",
@@ -1312,6 +1315,7 @@ function DriverTripCard({
                     })}
                     size={240}
                     level="M"
+                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                   />
                 </div>
                 <div className="mt-4 text-center">
@@ -1325,7 +1329,7 @@ function DriverTripCard({
               </div>
             ) : (
               <div className="mt-5 flex items-center gap-2 rounded-xl bg-white p-4 text-sm text-orange-700 dark:bg-slate-900 dark:text-orange-300">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                 Generating terminal verification QR...
               </div>
             )}
@@ -1337,7 +1341,7 @@ function DriverTripCard({
 
       {/* ARRIVED */}
       {leg.status === "ARRIVED" && (
-        <div className="border-b border-slate-100 p-6 dark:border-slate-800">
+        <div className="border-b border-slate-100 p-4 sm:p-6 dark:border-slate-800">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
             <div className="flex items-center gap-2 font-semibold text-emerald-900 dark:text-emerald-200">
               <CheckCircle2 className="h-4 w-4" />
@@ -1358,11 +1362,11 @@ function DriverTripCard({
       )}
 
       {/* TIMELINE */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
           Trip Timeline
         </h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           <TimelineItem label="Boarding Started" value={leg.boardingStartedAt} />
           <TimelineItem label="Started" value={leg.startedAt} />
           {leg.destinationType === "TERMINAL" && (
@@ -1398,16 +1402,20 @@ function SummaryCard({
   }[accent];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-slate-500 dark:text-slate-400">{title}</div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between gap-2">
+        <div className="truncate text-xs text-slate-500 sm:text-sm dark:text-slate-400">{title}</div>
         {icon && (
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${accentClasses}`}>
+          <div
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 ${accentClasses}`}
+          >
             {icon}
           </div>
         )}
       </div>
-      <div className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{value}</div>
+      <div className="mt-1 text-xl font-bold text-slate-900 sm:mt-2 sm:text-3xl dark:text-white">
+        {value}
+      </div>
     </div>
   );
 }
@@ -1422,13 +1430,13 @@ function InfoItem({
   secondary?: string;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-slate-500">
         {label}
       </div>
-      <div className="mt-1 font-semibold text-slate-900 dark:text-white">{value}</div>
+      <div className="mt-1 truncate font-semibold text-slate-900 dark:text-white">{value}</div>
       {secondary && (
-        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{secondary}</div>
+        <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{secondary}</div>
       )}
     </div>
   );
