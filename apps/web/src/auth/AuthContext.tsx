@@ -64,10 +64,22 @@ children:React.ReactNode;
 
 
 
+// CHANGED: sessionStorage instead of localStorage.
+//
+// localStorage is shared across every tab/window for the same
+// origin, so opening a new tab (or reopening a closed one)
+// picked up the existing session instead of showing the login
+// form. sessionStorage is scoped to a single tab - a new tab
+// starts empty, and closing a tab clears its sessionStorage
+// entirely, which gives the "always back to login" behavior.
+//
+// Trade-off: refreshing the SAME tab still stays logged in
+// (sessionStorage survives a reload), only NEW/closed tabs are
+// affected. That matches what was asked for.
 const [token,setToken] =
 useState<string|null>(
 
-  localStorage.getItem(
+  sessionStorage.getItem(
     "token"
   )
 
@@ -81,7 +93,7 @@ const [user,setUser] =
 useState<User|null>(
 
   JSON.parse(
-    localStorage.getItem(
+    sessionStorage.getItem(
       "user"
     )
     ||
@@ -114,7 +126,7 @@ data.user;
 
 
 
-localStorage.setItem(
+sessionStorage.setItem(
 
 "token",
 
@@ -126,7 +138,7 @@ accessToken
 
 
 
-localStorage.setItem(
+sessionStorage.setItem(
 
 "user",
 
@@ -140,7 +152,7 @@ loggedUser
 
 
 
-localStorage.setItem(
+sessionStorage.setItem(
 
 "userRole",
 
@@ -179,17 +191,17 @@ loggedUser
 function logout(){
 
 
-localStorage.removeItem(
+sessionStorage.removeItem(
 "token"
 );
 
 
-localStorage.removeItem(
+sessionStorage.removeItem(
 "user"
 );
 
 
-localStorage.removeItem(
+sessionStorage.removeItem(
 "userRole"
 );
 
