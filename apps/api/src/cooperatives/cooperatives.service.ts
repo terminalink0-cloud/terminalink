@@ -3,6 +3,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCooperativeDto } from './dto/create-cooperative.dto';
 import { UpdateCooperativeDto } from './dto/update-cooperative.dto';
 
+// Only the id is needed by the frontend (it just uses
+// `.length` to show a count), so select minimally instead of
+// pulling full driver/vehicle records into every list response.
+const fleetCounts = {
+  drivers: {
+    select: { id: true },
+  },
+  vehicles: {
+    select: { id: true },
+  },
+} as const;
+
 @Injectable()
 export class CooperativesService {
   constructor(
@@ -12,6 +24,7 @@ export class CooperativesService {
   create(dto: CreateCooperativeDto) {
     return this.prisma.cooperative.create({
       data: dto,
+      include: fleetCounts,
     });
   }
 
@@ -20,12 +33,14 @@ export class CooperativesService {
       orderBy: {
         createdAt: 'desc',
       },
+      include: fleetCounts,
     });
   }
 
   findOne(id: string) {
     return this.prisma.cooperative.findUnique({
       where: { id },
+      include: fleetCounts,
     });
   }
 
@@ -33,6 +48,7 @@ export class CooperativesService {
     return this.prisma.cooperative.update({
       where: { id },
       data: dto,
+      include: fleetCounts,
     });
   }
 
