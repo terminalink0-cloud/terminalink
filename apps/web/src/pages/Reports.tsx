@@ -75,13 +75,14 @@ export default function Reports() {
                         {trip.driver?.user?.displayName ?? "-"}
                       </dd>
                     </div>
-        
                     <div className="flex justify-between gap-3">
-                      <dt className="text-gray-500 dark:text-slate-400">Passengers</dt>
-                      <dd className="text-right text-gray-700 dark:text-slate-300">
-                        {trip.boardings?.length ?? 0}
+                      <dt className="text-gray-500 dark:text-slate-400">Vehicle</dt>
+                      <dd className="truncate text-right text-gray-700 dark:text-slate-300">
+                        {trip.vehicle?.plateNumber}
+                        {trip.vehicle?.make ? ` · ${trip.vehicle.make} ${trip.vehicle?.model ?? ""}` : ""}
                       </dd>
                     </div>
+                    
                     <div className="flex justify-between gap-3">
                       <dt className="text-gray-500 dark:text-slate-400">Date</dt>
                       <dd className="text-right text-gray-700 dark:text-slate-300">
